@@ -415,6 +415,8 @@ let currentMode='text',currentTab='40',selectedStyle="cute kawaii anime illustra
 let selectedSerifs=new Set(); // 選択済みセリフのtextセット（textをキーにしてシャッフルに対応）
 let stampType={type:'stamp',w:370,h:320};
 let stampCount=32;
+let extraSerifs=[];
+try{ const saved=localStorage.getItem('extraSerifs'); if(saved){ extraSerifs=JSON.parse(saved); } }catch(e){}
 let aiSerifs=null; // initPreviewTags時にTREND_SERIFSで初期化
 const catEmoji={daily:'👋',emotion:'😊',reaction:'💯',work:'📱',fun:'😆'};
 
@@ -675,12 +677,6 @@ function renderCustomTags(){const c=document.getElementById('customTags');c.inne
 function removeCustom(i){customTexts.splice(i,1);renderCustomTags();}
 
 // ── 追加セリフ ──
-let extraSerifs=[];
-// localStorage復元
-try{
-  const saved=localStorage.getItem('extraSerifs');
-  if(saved){ extraSerifs=JSON.parse(saved); }
-}catch(e){}
 
 function guessPose(txt){
   const t=txt;
