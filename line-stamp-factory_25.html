@@ -313,7 +313,7 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
           <div id="serifSelCount" style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-top:6px;border-left:3px solid var(--vermillion);padding-left:8px;"></div>
         </div>
         <div id="tabAreaCustom" style="display:none">
-          <span class="lbl">追加セリフ（最大40個）</span>
+          <span class="lbl">追加セリフ（最大48個）</span>
           <div style="display:flex;gap:6px;">
             <input type="text" id="customInput" placeholder="例：草、それな、無理すぎ…" style="flex:1">
             <button onclick="addCustomText(document.getElementById('customInput').value.trim());document.getElementById('customInput').value='';" style="padding:10px 14px;background:var(--ink);color:var(--paper);border:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;border-radius:0;transition:background .15s;" onmouseover="this.style.background='var(--vermillion)'" onmouseout="this.style.background='var(--ink)'">追加</button>
@@ -327,6 +327,7 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
         <div id="selectedSerifList" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
       </div>
       <button class="gen-btn" onclick="generateAll()">プロンプトを一括生成</button>
+      <button onclick="resetAll()" style="width:100%;padding:8px;background:none;border:1px solid var(--border2);color:var(--muted);font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;border-radius:0;margin-top:6px;transition:all .15s;" onmouseover="this.style.borderColor='var(--vermillion)';this.style.color='var(--vermillion)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--muted)'">↺ 全体をリセット</button>
     </div>
   </div>
 
@@ -406,7 +407,9 @@ const FULL_40=[
   {text:"ありがとね",cat:"daily",emoji:"🌸",label:"感謝",pose:"gentle bow with hands clasped, soft shy smile, cherry blossoms floating softly around"},
 ];
 const CAT_LABELS={daily:"日常",emotion:"感情",reaction:"リアクション",work:"仕事",fun:"ユーモア"};
-let currentMode='text',currentTab='40',selectedStyle="cute kawaii anime illustration style",customTexts=[];
+let currentMode='text',currentTab='40',selectedStyle="cute kawaii anime illustration style";
+let customTexts=[];
+try{const _s=localStorage.getItem('customTexts');if(_s)customTexts=JSON.parse(_s);}catch(e){}
 let selectedSerifs=new Set();
 let stampType={type:'stamp',w:370,h:320};
 let stampCount=32;
@@ -752,6 +755,7 @@ aiSerifs = TREND_SERIFS;
 // デフォルトで全選択（textをキーに）
 aiSerifs.slice(0,stampCount).forEach(s=>selectedSerifs.add(s.text));
 renderSerifCheckList();
+renderCustomTags();
 renderExtraSerifList();
 // 説明文を初期設定
 
@@ -793,9 +797,11 @@ function switchTab(t){
 }
 const customInput=document.getElementById('customInput');
 customInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addCustomText(customInput.value.trim());customInput.value='';}});
-function addCustomText(txt){if(!txt||customTexts.length>=40||customTexts.includes(txt))return;customTexts.push(txt);renderCustomTags();}
-function renderCustomTags(){const c=document.getElementById('customTags');c.innerHTML='';customTexts.forEach((t,i)=>{const d=document.createElement('div');d.className='ctag';d.innerHTML=`<span>${t}</span><button onclick="removeCustom(${i})">×</button>`;c.appendChild(d);});}
-function removeCustom(i){customTexts.splice(i,1);renderCustomTags();}
+function addCustomText(txt){if(!txt||customTexts.length>=48||customTexts.includes(txt))return;customTexts.push(txt);saveCustomTexts();renderCustomTags();}
+function saveCustomTexts(){try{localStorage.setItem('customTexts',JSON.stringify(customTexts));}catch(e){}}
+function renderCustomTags(){const c=document.getElementById('customTags');if(!c)return;c.innerHTML='';customTexts.forEach((t,i)=>{const d=document.createElement('div');d.className='ctag';d.innerHTML=`<span>${t}</span><button onclick="removeCustom(${i})">×</button>`;c.appendChild(d);});}
+function removeCustom(i){customTexts.splice(i,1);saveCustomTexts();renderCustomTags();}
+function resetAll(){if(!confirm('全ての設定をリセットしますか？'))return;customTexts=[];saveCustomTexts();serifPageIndex=0;aiSerifs=SERIF_POOL.slice(0,40);selectedSerifs=new Set();aiSerifs.slice(0,stampCount).forEach(s=>selectedSerifs.add(s.text));selectedStyle='cute kawaii anime illustration style';document.querySelectorAll('.style-btn').forEach(b=>b.classList.remove('active'));const first=document.querySelector('.style-btn[data-style="cute kawaii anime illustration style"]');if(first)first.classList.add('active');document.getElementById('selectedStyleDisplay').textContent='選択中 → アニメスタイル (Anime Style)';document.getElementById('charDesc').value='';renderCustomTags();renderSerifCheckList();renderSelectedSummary();document.getElementById('outputArea').innerHTML='<div class="empty-state"><div class="empty-icon">🏭</div><div class="empty-rule"></div><h2>待機中</h2><p>左のパネルでキャラクターを設定し<br>「プロンプトを一括生成」を押してください<br><br>40個分のプロンプトが一瞬で生成されます</p></div>';showToast('✅ リセット完了');}
 
 // ── 追加セリフ ──
 
