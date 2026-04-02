@@ -314,7 +314,10 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
         </div>
         <div id="tabAreaCustom" style="display:none">
           <span class="lbl">追加セリフ（最大40個）</span>
-          <input type="text" id="customInput" placeholder="例：草、それな、無理すぎ…">
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="customInput" placeholder="例：草、それな、無理すぎ…" style="flex:1">
+            <button onclick="addCustomText(document.getElementById('customInput').value.trim());document.getElementById('customInput').value='';" style="padding:10px 14px;background:var(--ink);color:var(--paper);border:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;border-radius:0;transition:background .15s;" onmouseover="this.style.background='var(--vermillion)'" onmouseout="this.style.background='var(--ink)'">追加</button>
+          </div>
           <div class="custom-tags" id="customTags"></div>
         </div>
       </div>
@@ -845,8 +848,9 @@ function addExtraSerif(){
 }
 
 function renderExtraSerifList(){
-  renderSelectedSummary(); // 追加セリフが変わったら要約も更新
+  renderSelectedSummary();
   const c=document.getElementById('extraSerifList');
+  if(!c)return;
   c.innerHTML='';
   if(extraSerifs.length===0){
     const hint=document.createElement('p');
