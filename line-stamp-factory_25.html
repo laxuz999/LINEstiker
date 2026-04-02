@@ -296,7 +296,7 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
       </div>
       <div id="textModeArea">
         <div class="tab-row">
-          <button class="tab active" id="tab40" onclick="switchTab('40')">自動セリフ</button>
+          <button class="tab active" id="tab40" onclick="switchTab('40')">厳選セリフ</button>
           <button class="tab" id="tabCustom" onclick="switchTab('custom')">カスタム入力</button>
         </div>
         <div id="tabArea40">
@@ -305,7 +305,7 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
             <button onclick="selectAllSerifs()" style="padding:4px 10px;background:var(--ink);color:var(--paper);border:none;font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;border-radius:0;">全選択</button>
             <button onclick="clearAllSerifs()" style="padding:4px 10px;background:none;border:1px solid var(--border2);font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;color:var(--muted);border-radius:0;">全解除</button>
             <button onclick="selectByCount()" style="padding:4px 10px;background:var(--vermillion);color:#fff;border:none;font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;border-radius:0;" id="selectCountBtn">上から<span id="selectCountLabel">32</span>個選択</button>
-            <button onclick="refreshSerifs()" style="padding:4px 10px;background:none;border:1px solid var(--border2);font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;color:var(--muted);border-radius:0;margin-left:auto;">↺ 並替</button>
+            <button onclick="refreshSerifs()" style="padding:4px 10px;background:none;border:1px solid var(--border2);font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;color:var(--muted);border-radius:0;margin-left:auto;">↺ 入替</button>
           </div>
           <!-- カテゴリ別セリフ一覧（チェック式） -->
           <div id="serifCheckList"></div>
@@ -313,18 +313,10 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
           <div id="serifSelCount" style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-top:6px;border-left:3px solid var(--vermillion);padding-left:8px;"></div>
         </div>
         <div id="tabAreaCustom" style="display:none">
-          <span class="lbl">好きな文字を入力してEnter（最大40個）</span>
+          <span class="lbl">追加セリフ（最大40個）</span>
           <input type="text" id="customInput" placeholder="例：草、それな、無理すぎ…">
           <div class="custom-tags" id="customTags"></div>
         </div>
-      </div>
-      <div class="section" style="margin-top:16px">
-        <span class="lbl">追加セリフ（任意）</span>
-        <div style="display:flex;gap:6px;">
-          <input type="text" id="extraSerifInput" placeholder="例：おめざめ、ちょっとね、なんでよ…" style="flex:1">
-          <button onclick="addExtraSerif()" style="padding:10px 14px;background:var(--ink);color:var(--paper);border:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;border-radius:0;transition:background .15s;" onmouseover="this.style.background='var(--vermillion)'" onmouseout="this.style.background='var(--ink)'">追加</button>
-        </div>
-        <div id="extraSerifList" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;"></div>
       </div>
       <!-- 生成対象セリフ一覧 -->
       <div id="selectedSerifSummary" style="display:none;margin-bottom:12px;padding:10px 14px;background:var(--paper);border:1.5px solid var(--border);border-left:3px solid var(--vermillion);">
@@ -412,11 +404,11 @@ const FULL_40=[
 ];
 const CAT_LABELS={daily:"日常",emotion:"感情",reaction:"リアクション",work:"仕事",fun:"ユーモア"};
 let currentMode='text',currentTab='40',selectedStyle="cute kawaii anime illustration style",customTexts=[];
-let selectedSerifs=new Set(); // 選択済みセリフのtextセット（textをキーにしてシャッフルに対応）
+let selectedSerifs=new Set();
 let stampType={type:'stamp',w:370,h:320};
 let stampCount=32;
 let extraSerifs=[];
-try{ const saved=localStorage.getItem('extraSerifs'); if(saved){ extraSerifs=JSON.parse(saved); } }catch(e){}
+let serifPageIndex=0;
 let aiSerifs=null; // initPreviewTags時にTREND_SERIFSで初期化
 const catEmoji={daily:'👋',emotion:'😊',reaction:'💯',work:'📱',fun:'😆'};
 
@@ -454,58 +446,184 @@ function setCount(el){
   renderSerifCheckList();
 }
 
-// 2024〜2025年トレンドセリフ40選
-const TREND_SERIFS = [
-  {text:"それな",      cat:"reaction",emoji:"💯",label:"それな",     pose:"finger guns pointing forward with knowing cool nod, smug confident expression"},
-  {text:"わかりみ",    cat:"reaction",emoji:"🙌",label:"わかりみ",   pose:"both hands raised in strong agreement, empathetic wide eyes"},
-  {text:"エモい",      cat:"emotion", emoji:"🥺",label:"エモい",     pose:"clutching chest dramatically, shimmering teary eyes, trembling lips, deeply emotional expression"},
-  {text:"尊い…",      cat:"emotion", emoji:"😭",label:"尊い",       pose:"dramatically falling backwards overwhelmed, stars spinning around head, hands clasped to cheeks"},
-  {text:"草",          cat:"fun",     emoji:"😂",label:"草",         pose:"laughing so hard rolling on floor, tears streaming"},
-  {text:"りょ",        cat:"daily",   emoji:"👍",label:"りょ",       pose:"casual thumbs up, relaxed confident expression"},
-  {text:"ガチ？",      cat:"reaction",emoji:"😯",label:"ガチ？",     pose:"jaw dropped, leaning forward in disbelief, wide eyes"},
-  {text:"てぇてぇ",    cat:"emotion", emoji:"🫶",label:"てぇてぇ",   pose:"both hands forming heart shape, rosy blush, eyes sparkling with pure love and warmth"},
-  {text:"しんどい",    cat:"emotion", emoji:"😩",label:"しんどい",   pose:"slumped flat, arms spread, completely exhausted"},
-  {text:"まじか",      cat:"reaction",emoji:"🤯",label:"まじか",     pose:"head exploding shock, arms thrown wide, lightning bolts"},
-  {text:"ぴえん",      cat:"emotion", emoji:"🥺",label:"ぴえん",     pose:"quivering bottom lip, enormous glistening teardrop eyes, trembling all over, on the verge of tears"},
-  {text:"お疲れ様です",cat:"work",    emoji:"🍵",label:"お疲れ",     pose:"offering steaming cup with both hands, gentle warm bow"},
-  {text:"よろしく！",  cat:"daily",   emoji:"🤝",label:"よろしく",   pose:"extending hand for handshake, bright confident smile"},
-  {text:"ありがと♡",  cat:"daily",   emoji:"💛",label:"ありがと",   pose:"both palms together grateful bow, hearts floating around"},
-  {text:"いってらっしゃい",cat:"daily",emoji:"👋",label:"いってら",  pose:"waving both hands cheerfully, warm bright smile"},
-  {text:"おかえり♪",  cat:"daily",   emoji:"🏠",label:"おかえり",   pose:"arms open wide welcoming, joyful bouncing expression"},
-  {text:"了解です！",  cat:"work",    emoji:"✅",label:"了解",       pose:"crisp thumbs up with professional nod, energetic stance"},
-  {text:"確認します",  cat:"work",    emoji:"🔍",label:"確認",       pose:"magnifying glass to eye, focused detective lean-in"},
-  {text:"後で連絡します",cat:"work",  emoji:"📱",label:"後で連絡",   pose:"holding phone up gesturing wait, reassuring smile"},
-  {text:"おめでとう！",cat:"work",    emoji:"🎊",label:"おめでとう", pose:"party popper overhead, showered in confetti, huge grin"},
-  {text:"頑張れ！",    cat:"reaction",emoji:"🔥",label:"頑張れ",     pose:"pumping both fists forward in cheer, flames bursting around"},
-  {text:"無理ぽ",      cat:"fun",     emoji:"😵",label:"無理ぽ",     pose:"collapsed flat with spiral eyes, white flag raised"},
-  {text:"腹ペコ",      cat:"fun",     emoji:"🍜",label:"腹ペコ",     pose:"rubbing stomach desperately, drooling, starving expression"},
-  {text:"眠い…",      cat:"fun",     emoji:"😪",label:"眠い",       pose:"head drooping to side, sleep bubbles, stumbling sleepily"},
-  {text:"テンション上がる",cat:"emotion",emoji:"🎉",label:"テンション", pose:"arms raised jumping for joy, stars exploding around"},
-  {text:"沼った",      cat:"emotion", emoji:"😍",label:"沼った",     pose:"heart-shaped spiral eyes, floating dreamily, completely enchanted and unable to look away"},
-  {text:"推しが尊い",  cat:"emotion", emoji:"💖",label:"推し尊い",   pose:"both hands pressed to cheeks, spinning with joy, heart eyes, completely overwhelmed and flustered by adoration"},
-  {text:"秒で行く",    cat:"reaction",emoji:"⚡",label:"秒で行く",   pose:"sprinting at lightning speed, speed lines, determined face"},
-  {text:"ちょっと待って",cat:"work",  emoji:"✋",label:"待って",     pose:"palm held up firmly stop gesture, serious leaning forward"},
-  {text:"ありえんくて草",cat:"fun",   emoji:"😆",label:"ありえん草", pose:"doubled over laughing disbelief, tears streaming, rolling"},
-  {text:"ぬくぬく",    cat:"fun",     emoji:"🫶",label:"ぬくぬく",   pose:"wrapped in cozy blanket with mug, soft warm glowing smile"},
-  {text:"てへぺろ",    cat:"fun",     emoji:"😜",label:"てへぺろ",   pose:"tongue out winking, scratching head, cheeky shy shrug"},
-  {text:"ドンマイ",    cat:"reaction",emoji:"💪",label:"ドンマイ",   pose:"reassuring pat gesture, warm encouraging smile, thumbs up"},
-  {text:"最高かよ",    cat:"emotion", emoji:"🌟",label:"最高かよ",   pose:"arms triumphantly overhead, tears of joy, huge beaming grin"},
-  {text:"泣いてる",    cat:"emotion", emoji:"😭",label:"泣いてる",   pose:"sobbing dramatically, rivers of tears, hands covering face"},
-  {text:"むっちゃ嬉しい",cat:"emotion",emoji:"😊",label:"むっちゃ嬉しい",pose:"jumping with both fists raised, stars hearts bursting"},
-  {text:"おやすみ〜",  cat:"daily",   emoji:"🌙",label:"おやすみ",   pose:"yawning big, holding pillow, eyes drooping, ZZZ floating"},
-  {text:"おはよ",      cat:"daily",   emoji:"🌅",label:"おはよ",     pose:"stretching arms wide, fresh bright smile, sunrise energy"},
-  {text:"また明日ね",  cat:"daily",   emoji:"👋",label:"また明日",   pose:"waving over shoulder walking away, glancing back smiling"},
-  {text:"投げやり",    cat:"fun",     emoji:"🤷",label:"投げやり",   pose:"exaggerated shrug both hands up, half-closed eyes, given up"},
+// セリフストック160件（4ページ×40件）
+const SERIF_POOL = [
+  // === PAGE 0: トレンド ===
+  {text:"それな",        cat:"reaction",emoji:"💯",label:"それな",       pose:"finger guns pointing forward with knowing cool nod, smug confident expression"},
+  {text:"わかりみ",      cat:"reaction",emoji:"🙌",label:"わかりみ",     pose:"both hands raised in strong agreement, empathetic wide eyes"},
+  {text:"エモい",        cat:"emotion", emoji:"🥺",label:"エモい",       pose:"clutching chest dramatically, shimmering teary eyes, deeply emotional expression"},
+  {text:"尊い…",        cat:"emotion", emoji:"😭",label:"尊い",         pose:"falling backwards overwhelmed, stars spinning around head, hands clasped to cheeks"},
+  {text:"草",            cat:"fun",     emoji:"😂",label:"草",           pose:"laughing so hard rolling on floor, tears streaming"},
+  {text:"りょ",          cat:"daily",   emoji:"👍",label:"りょ",         pose:"casual thumbs up, relaxed confident expression"},
+  {text:"ガチ？",        cat:"reaction",emoji:"😯",label:"ガチ？",       pose:"jaw dropped, leaning forward in disbelief, wide eyes"},
+  {text:"てぇてぇ",      cat:"emotion", emoji:"🫶",label:"てぇてぇ",     pose:"both hands forming heart shape, rosy blush, eyes sparkling with pure love"},
+  {text:"しんどい",      cat:"emotion", emoji:"😩",label:"しんどい",     pose:"slumped flat, arms spread, completely exhausted"},
+  {text:"まじか",        cat:"reaction",emoji:"🤯",label:"まじか",       pose:"head exploding shock, arms thrown wide, lightning bolts"},
+  {text:"ぴえん",        cat:"emotion", emoji:"🥺",label:"ぴえん",       pose:"quivering bottom lip, enormous teardrop eyes, trembling, on the verge of tears"},
+  {text:"お疲れ様です",  cat:"work",    emoji:"🍵",label:"お疲れ",       pose:"offering steaming cup with both hands, gentle warm bow"},
+  {text:"よろしく！",    cat:"daily",   emoji:"🤝",label:"よろしく",     pose:"extending hand for handshake, bright confident smile"},
+  {text:"ありがと♡",    cat:"daily",   emoji:"💛",label:"ありがと",     pose:"both palms together grateful bow, hearts floating around"},
+  {text:"いってらっしゃい",cat:"daily", emoji:"👋",label:"いってら",     pose:"waving both hands cheerfully, warm bright smile"},
+  {text:"おかえり♪",    cat:"daily",   emoji:"🏠",label:"おかえり",     pose:"arms open wide welcoming, joyful bouncing expression"},
+  {text:"了解です！",    cat:"work",    emoji:"✅",label:"了解",         pose:"crisp thumbs up with professional nod, energetic stance"},
+  {text:"確認します",    cat:"work",    emoji:"🔍",label:"確認",         pose:"magnifying glass to eye, focused detective lean-in"},
+  {text:"後で連絡します",cat:"work",    emoji:"📱",label:"後で連絡",     pose:"holding phone up gesturing wait, reassuring smile"},
+  {text:"おめでとう！",  cat:"work",    emoji:"🎊",label:"おめでとう",   pose:"party popper overhead, showered in confetti, huge grin"},
+  {text:"頑張れ！",      cat:"reaction",emoji:"🔥",label:"頑張れ",       pose:"pumping both fists forward in cheer, flames bursting around"},
+  {text:"無理ぽ",        cat:"fun",     emoji:"😵",label:"無理ぽ",       pose:"collapsed flat with spiral eyes, white flag raised"},
+  {text:"腹ペコ",        cat:"fun",     emoji:"🍜",label:"腹ペコ",       pose:"rubbing stomach desperately, drooling, starving expression"},
+  {text:"眠い…",        cat:"fun",     emoji:"😪",label:"眠い",         pose:"head drooping to side, sleep bubbles, stumbling sleepily"},
+  {text:"テンション上がる",cat:"emotion",emoji:"🎉",label:"テンション",  pose:"arms raised jumping for joy, stars exploding around"},
+  {text:"沼った",        cat:"emotion", emoji:"😍",label:"沼った",       pose:"heart-shaped spiral eyes, floating dreamily, completely enchanted"},
+  {text:"推しが尊い",    cat:"emotion", emoji:"💖",label:"推し尊い",     pose:"both hands pressed to cheeks, spinning with joy, heart eyes, overwhelmed"},
+  {text:"秒で行く",      cat:"reaction",emoji:"⚡",label:"秒で行く",     pose:"sprinting at lightning speed, speed lines, determined face"},
+  {text:"ちょっと待って",cat:"work",    emoji:"✋",label:"待って",       pose:"palm held up firmly stop gesture, serious leaning forward"},
+  {text:"ありえんくて草",cat:"fun",     emoji:"😆",label:"ありえん草",   pose:"doubled over laughing disbelief, tears streaming, rolling"},
+  {text:"ぬくぬく",      cat:"fun",     emoji:"🫶",label:"ぬくぬく",     pose:"wrapped in cozy blanket with mug, soft warm glowing smile"},
+  {text:"てへぺろ",      cat:"fun",     emoji:"😜",label:"てへぺろ",     pose:"tongue out winking, scratching head, cheeky shy shrug"},
+  {text:"ドンマイ",      cat:"reaction",emoji:"💪",label:"ドンマイ",     pose:"reassuring pat gesture, warm encouraging smile, thumbs up"},
+  {text:"最高かよ",      cat:"emotion", emoji:"🌟",label:"最高かよ",     pose:"arms triumphantly overhead, tears of joy, huge beaming grin"},
+  {text:"泣いてる",      cat:"emotion", emoji:"😭",label:"泣いてる",     pose:"sobbing dramatically, rivers of tears, hands covering face"},
+  {text:"むっちゃ嬉しい",cat:"emotion", emoji:"😊",label:"むっちゃ嬉しい",pose:"jumping with both fists raised, stars and hearts bursting"},
+  {text:"おやすみ〜",    cat:"daily",   emoji:"🌙",label:"おやすみ",     pose:"yawning big, holding pillow, eyes drooping, ZZZ floating"},
+  {text:"おはよ",        cat:"daily",   emoji:"🌅",label:"おはよ",       pose:"stretching arms wide, fresh bright smile, sunrise energy"},
+  {text:"また明日ね",    cat:"daily",   emoji:"👋",label:"また明日",     pose:"waving over shoulder walking away, glancing back smiling"},
+  {text:"投げやり",      cat:"fun",     emoji:"🤷",label:"投げやり",     pose:"exaggerated shrug both hands up, half-closed eyes, given up"},
+  // === PAGE 1: 日常・ていねい ===
+  {text:"おはようございます",cat:"daily",emoji:"🌅",label:"おはようございます",pose:"formal polite morning bow, bright professional smile"},
+  {text:"こんにちは！",  cat:"daily",   emoji:"👋",label:"こんにちは",   pose:"cheerful wave, warm friendly daytime smile"},
+  {text:"こんばんは",    cat:"daily",   emoji:"🌙",label:"こんばんは",   pose:"gentle evening wave, soft relaxed smile, calm night vibe"},
+  {text:"いただきます",  cat:"daily",   emoji:"🍚",label:"いただきます", pose:"hands pressed together before meal, happy hungry anticipation"},
+  {text:"ごちそうさま",  cat:"daily",   emoji:"😋",label:"ごちそうさま", pose:"satisfied stomach rub, eyes closed happy, meal complete"},
+  {text:"承知しました",  cat:"work",    emoji:"✅",label:"承知しました", pose:"firm professional nod, crisp acknowledgment, reliable stance"},
+  {text:"かしこまりました",cat:"work",  emoji:"🎩",label:"かしこまり",   pose:"deep respectful bow, formal polite expression"},
+  {text:"よろしくお願いします",cat:"work",emoji:"🙏",label:"よろしくお願い",pose:"deep sincere bow, both hands pressed together, earnest request"},
+  {text:"ありがとうございます",cat:"daily",emoji:"🙇",label:"ありがとうございます",pose:"deep grateful bow, warm appreciative smile"},
+  {text:"お世話になります",cat:"work",  emoji:"💼",label:"お世話になります",pose:"formal professional bow, composed polite expression"},
+  {text:"失礼します",    cat:"work",    emoji:"👔",label:"失礼します",   pose:"polite bow while leaving, refined apologetic expression"},
+  {text:"検討します",    cat:"work",    emoji:"🤔",label:"検討します",   pose:"chin in hand thinking pose, serious careful consideration"},
+  {text:"対応します",    cat:"work",    emoji:"💪",label:"対応します",   pose:"sleeves rolled up ready, determined reliable confident stance"},
+  {text:"ご確認ください",cat:"work",    emoji:"📋",label:"ご確認ください",pose:"presenting clipboard helpfully, pointing with friendly smile"},
+  {text:"提案があります",cat:"work",    emoji:"💡",label:"提案があります",pose:"raised finger lightbulb moment, bright idea excited expression"},
+  {text:"少々お待ちください",cat:"work",emoji:"⏳",label:"少々お待ち",   pose:"palm raised gently, apologetic patient smile"},
+  {text:"お気をつけて",  cat:"daily",   emoji:"🍀",label:"お気をつけて", pose:"caring wave goodbye, gentle warm expression, safe travels"},
+  {text:"すみません🙏",  cat:"daily",   emoji:"😅",label:"すみません",   pose:"sheepish scratch of head, apologetic blush, nervous smile"},
+  {text:"申し訳ありません",cat:"work",  emoji:"🙇",label:"申し訳ありません",pose:"deep bow apologizing, genuinely remorseful expression"},
+  {text:"もうすぐ着きます",cat:"daily", emoji:"🏃",label:"もうすぐ着きます",pose:"running toward destination, eager nearly-there expression"},
+  {text:"今すぐ行きます",cat:"daily",   emoji:"⚡",label:"今すぐ行きます",pose:"dashing off at full speed, urgent determined face"},
+  {text:"後ほどご連絡します",cat:"work",emoji:"📱",label:"後ほどご連絡", pose:"phone held up, reassuring professional smile"},
+  {text:"お待ちしています",cat:"work",  emoji:"😊",label:"お待ちしています",pose:"waiting patiently, warm welcoming expression, open arms"},
+  {text:"急ぎでお願いします",cat:"work",emoji:"🔥",label:"急ぎでお願い", pose:"running urgently with papers, stressed but determined"},
+  {text:"報告します",    cat:"work",    emoji:"📊",label:"報告します",   pose:"presenting report standing tall, professional delivery"},
+  {text:"修正しました",  cat:"work",    emoji:"🔧",label:"修正しました", pose:"wrench down done gesture, satisfied accomplished expression"},
+  {text:"いつでも大丈夫",cat:"daily",   emoji:"😄",label:"いつでも大丈夫",pose:"both thumbs up, easygoing relaxed totally-fine expression"},
+  {text:"どういたしまして",cat:"daily", emoji:"😊",label:"どういたしまして",pose:"gentle dismissing wave, warm humble you're-welcome smile"},
+  {text:"おつかれさま！",cat:"daily",   emoji:"🍺",label:"おつかれさま", pose:"raising glass in toast, warm collegial end-of-day cheer"},
+  {text:"また来週！",    cat:"daily",   emoji:"📅",label:"また来週",     pose:"enthusiastic see-you wave, cheerful weekly anticipation"},
+  {text:"お先に！",      cat:"work",    emoji:"🚀",label:"お先に",       pose:"heading out first gesture, energetic leaving wave"},
+  {text:"行ってきます！",cat:"daily",   emoji:"🎒",label:"行ってきます", pose:"shouldering bag energetically, excited departure expression"},
+  {text:"ただいま〜",    cat:"daily",   emoji:"🏠",label:"ただいま",     pose:"coming through door relieved, dropping bag with sigh"},
+  {text:"おかえり！",    cat:"daily",   emoji:"🌟",label:"おかえり",     pose:"arms wide open welcoming home, joyful greeting expression"},
+  {text:"気をつけてね",  cat:"daily",   emoji:"🍀",label:"気をつけてね", pose:"gentle patting gesture, caring concerned expression"},
+  {text:"また明日！",    cat:"daily",   emoji:"☀️",label:"また明日",     pose:"enthusiastic see-you-tomorrow wave, bright anticipation smile"},
+  {text:"ご連絡ください",cat:"work",    emoji:"📞",label:"ご連絡ください",pose:"hand to ear phone gesture, friendly inviting warm smile"},
+  {text:"了解いたしました",cat:"work",  emoji:"📝",label:"了解いたしました",pose:"writing note with professional nod, acknowledgment stance"},
+  {text:"後で話しましょう",cat:"work",  emoji:"💬",label:"後で話しましょう",pose:"pointing to clock then waving, friendly postpone gesture"},
+  {text:"ありがとうございました",cat:"daily",emoji:"💛",label:"ありがとうございました",pose:"deepest grateful bow, eyes closed, heartfelt appreciation"},
+  // === PAGE 2: 友達・カジュアル ===
+  {text:"ウケるんだけど",cat:"fun",     emoji:"😂",label:"ウケるんだけど",pose:"doubled over laughing uncontrollably, hand on knee, tears flying"},
+  {text:"やばすぎる！",  cat:"fun",     emoji:"🤯",label:"やばすぎる",   pose:"head exploding, eyes wide in disbelief, arms thrown outward"},
+  {text:"えぐくない？",  cat:"reaction",emoji:"😱",label:"えぐくない",   pose:"hands on cheeks shocked, leaning backward wide-eyed"},
+  {text:"神すぎる！",    cat:"reaction",emoji:"🙏",label:"神すぎる",     pose:"worshipping pose, starry eyes, hands clasped upward"},
+  {text:"天才やん！",    cat:"reaction",emoji:"💡",label:"天才やん",     pose:"pointing in amazement with respect, wide impressed eyes"},
+  {text:"最強すぎる",    cat:"emotion", emoji:"💪",label:"最強すぎる",   pose:"flexing both arms triumphantly, fierce champion grin"},
+  {text:"優勝した",      cat:"emotion", emoji:"🏆",label:"優勝した",     pose:"holding trophy overhead, champion victory pose"},
+  {text:"一緒に行こ！",  cat:"daily",   emoji:"🤝",label:"一緒に行こ",   pose:"pulling arm excitedly, bright urging smile"},
+  {text:"呼んでよ！",    cat:"reaction",emoji:"😤",label:"呼んでよ",     pose:"indignant arms crossed, pouty-cute left-out face"},
+  {text:"暇なんだけど",  cat:"fun",     emoji:"😑",label:"暇なんだけど", pose:"lying flat bored, staring at ceiling, deadpan expression"},
+  {text:"何食べよ？",    cat:"fun",     emoji:"🤔",label:"何食べよ",     pose:"tapping chin pondering food, excited appetite anticipation"},
+  {text:"ご飯行こ！",    cat:"daily",   emoji:"🍱",label:"ご飯行こ",     pose:"grabbing arm excitedly to eat, glowing happy hungry face"},
+  {text:"飲みに行こ！",  cat:"fun",     emoji:"🍺",label:"飲みに行こ",   pose:"raising imaginary glass, grinning party-invitation energy"},
+  {text:"カラオケ行こ！",cat:"fun",     emoji:"🎤",label:"カラオケ行こ", pose:"mic pose singing dramatically, star energy bursting"},
+  {text:"どこにいる？",  cat:"daily",   emoji:"📍",label:"どこにいる",   pose:"looking around searching, curious tilted-head expression"},
+  {text:"もう行くね",    cat:"daily",   emoji:"👋",label:"もう行くね",   pose:"grabbing coat ready to leave, apologetic friendly wave"},
+  {text:"遅れてる！",    cat:"daily",   emoji:"😰",label:"遅れてる",     pose:"running while sweating, frantic stressed expression"},
+  {text:"ごめん遅刻",    cat:"daily",   emoji:"😅",label:"ごめん遅刻",   pose:"bowing apologetically while running, embarrassed blush"},
+  {text:"先に行ってて",  cat:"daily",   emoji:"🏃",label:"先に行ってて", pose:"waving go-ahead gesture, lagging-behind rushing"},
+  {text:"まあいいか",    cat:"fun",     emoji:"😌",label:"まあいいか",   pose:"shrugging one shoulder, relaxed let-it-go acceptance"},
+  {text:"なんでもいい",  cat:"fun",     emoji:"🤷",label:"なんでもいい", pose:"both hands up, truly unbothered I-don't-mind expression"},
+  {text:"大丈夫だよ！",  cat:"reaction",emoji:"😊",label:"大丈夫だよ",   pose:"two thumbs up, reassuring warm comforting smile"},
+  {text:"心配しないで",  cat:"reaction",emoji:"🫂",label:"心配しないで", pose:"comforting hug gesture, caring protective warm face"},
+  {text:"いつもありがとう",cat:"daily", emoji:"💛",label:"いつもありがとう",pose:"hands over heart, deeply grateful glowing warm smile"},
+  {text:"大好きだよ！",  cat:"emotion", emoji:"❤️",label:"大好きだよ",   pose:"heart hands gesturing to viewer, glowing love overflowing"},
+  {text:"また連絡して",  cat:"daily",   emoji:"📱",label:"また連絡して", pose:"phone hand gesture smiling, friendly see-you-later"},
+  {text:"寂しいよ",      cat:"emotion", emoji:"😢",label:"寂しいよ",     pose:"hugging self alone, drooping sad missing-you expression"},
+  {text:"会いたいな",    cat:"emotion", emoji:"🥺",label:"会いたいな",   pose:"reaching hand forward longingly, teary sincere eyes"},
+  {text:"元気出して！",  cat:"reaction",emoji:"🌈",label:"元気出して",   pose:"cheerleader pose, rainbow energy bursting out"},
+  {text:"任せて！",      cat:"reaction",emoji:"💪",label:"任せて",       pose:"confident pointing at self, I've-got-this stance"},
+  {text:"絶対大丈夫",    cat:"reaction",emoji:"👍",label:"絶対大丈夫",   pose:"firm double thumbs up, rock-solid confidence"},
+  {text:"頑張ろう！",    cat:"reaction",emoji:"🔥",label:"頑張ろう",     pose:"mutual fists raised cheer, let's-do-this fire energy"},
+  {text:"なんかいい感じ",cat:"emotion", emoji:"✨",label:"なんかいい感じ",pose:"floating pleasantly, vague sparkly happy aura"},
+  {text:"やる気出てきた",cat:"emotion", emoji:"💥",label:"やる気出てきた",pose:"rolling up sleeves, fired-up determined ready-to-go face"},
+  {text:"今日も頑張る",  cat:"daily",   emoji:"☀️",label:"今日も頑張る", pose:"fist raised with morning sun, fresh determined daily energy"},
+  {text:"今日は終わり！",cat:"daily",   emoji:"🎊",label:"今日は終わり", pose:"throwing both hands up done, relieved celebration"},
+  {text:"友達でいてね",  cat:"emotion", emoji:"🫶",label:"友達でいてね", pose:"pinky promise pose, earnest sincere pleading eyes"},
+  {text:"一緒にいるよ",  cat:"emotion", emoji:"🤝",label:"一緒にいるよ", pose:"side-by-side supportive pose, comforting loyal expression"},
+  {text:"ありがとね",    cat:"daily",   emoji:"🌸",label:"ありがとね",   pose:"gentle bow with soft shy smile, cherry blossoms floating"},
+  {text:"大好きよ",      cat:"emotion", emoji:"💖",label:"大好きよ",     pose:"hugging self with love, rosy cheeks, sparkles everywhere"},
+  // === PAGE 3: トレンド・ネットスラング ===
+  {text:"ガチ恋した",    cat:"emotion", emoji:"💘",label:"ガチ恋した",   pose:"arrow through heart, love-struck spiral eyes, floating"},
+  {text:"一生これ食べたい",cat:"fun",   emoji:"😋",label:"一生これ食べたい",pose:"holding food reverently like treasure, devoted sparkling eyes"},
+  {text:"完全に沼った",  cat:"emotion", emoji:"😍",label:"完全に沼った", pose:"happily sinking into obsession, spiral eyes, totally gone"},
+  {text:"テンアゲ！",    cat:"emotion", emoji:"🎵",label:"テンアゲ",     pose:"dancing energetically, vibing to music, notes all around"},
+  {text:"情緒がやばい",  cat:"emotion", emoji:"🌊",label:"情緒がやばい", pose:"emotional tidal wave crashing over, overwhelmed"},
+  {text:"頭バグった",    cat:"fun",     emoji:"🤖",label:"頭バグった",   pose:"sparks flying from head, system error face, confused"},
+  {text:"充電0%",       cat:"fun",     emoji:"🔋",label:"充電0%",       pose:"collapsed completely flat, dead battery, lifeless"},
+  {text:"語彙力死んだ",  cat:"reaction",emoji:"💀",label:"語彙力死んだ", pose:"speechless blank stare, empty speech bubble, mind wiped"},
+  {text:"感情追いつかない",cat:"emotion",emoji:"🌀",label:"感情追いつかない",pose:"spinning emotionally overwhelmed, too many feelings"},
+  {text:"泣くしかない",  cat:"emotion", emoji:"😭",label:"泣くしかない", pose:"ugly cry accepting fate, rivers of tears, resigned weeping"},
+  {text:"笑うしかない",  cat:"fun",     emoji:"😂",label:"笑うしかない", pose:"laughing through pain, tears-laughter combo, cope mode"},
+  {text:"寝不足で死ぬ",  cat:"fun",     emoji:"😴",label:"寝不足で死ぬ", pose:"zombie walking, massive dark circles, barely-alive"},
+  {text:"花粉症つらい",  cat:"fun",     emoji:"🤧",label:"花粉症つらい", pose:"giant sneeze, tissue box nearby, suffering cutely"},
+  {text:"暑すぎて死ぬ",  cat:"fun",     emoji:"🥵",label:"暑すぎて死ぬ", pose:"melting dramatically from heat, tongue out, dripping sweat"},
+  {text:"寒すぎて死ぬ",  cat:"fun",     emoji:"🥶",label:"寒すぎて死ぬ", pose:"shivering frozen stiff, chattering teeth, icicles forming"},
+  {text:"体が動かない",  cat:"fun",     emoji:"😵",label:"体が動かない", pose:"flopped over, limbs too heavy, spirit leaving body"},
+  {text:"やる気がない",  cat:"fun",     emoji:"😑",label:"やる気がない", pose:"zero energy slump, flat expression, give-up aura"},
+  {text:"月曜日は無理",  cat:"fun",     emoji:"😫",label:"月曜日は無理", pose:"dramatically rejecting Monday, hiding under covers"},
+  {text:"金曜日最高！",  cat:"fun",     emoji:"🎉",label:"金曜日最高",   pose:"TGIF victory dance, pure weekend joy, freedom activated"},
+  {text:"推しに会いたい",cat:"emotion", emoji:"💖",label:"推しに会いたい",pose:"fan longing pose, hands clasped, hearts overflowing"},
+  {text:"推しが完璧すぎる",cat:"emotion",emoji:"😭",label:"推しが完璧",  pose:"overwhelmed by perfection, happy tears, hands to cheeks"},
+  {text:"課金した",      cat:"fun",     emoji:"💸",label:"課金した",     pose:"money flying away, satisfied-yet-regretful expression"},
+  {text:"全部欲しい！",  cat:"fun",     emoji:"🛒",label:"全部欲しい",   pose:"arms full of items, unstoppable shopping mode"},
+  {text:"財布が泣いてる",cat:"fun",     emoji:"💸",label:"財布が泣いてる",pose:"wallet crying on floor, sympathetic but still shopping"},
+  {text:"ダイエット明日から",cat:"fun", emoji:"🍰",label:"ダイエット明日から",pose:"eating cake guiltlessly, tomorrow-is-another-day expression"},
+  {text:"早起きした！",  cat:"daily",   emoji:"🌅",label:"早起きした",   pose:"shocked at own success, triumphant early-bird victory"},
+  {text:"二度寝した",    cat:"fun",     emoji:"😴",label:"二度寝した",   pose:"returning to pillow with zero regret, sleep won again"},
+  {text:"起きたくない",  cat:"fun",     emoji:"😭",label:"起きたくない", pose:"clinging to blanket desperately, resisting morning"},
+  {text:"もう一回寝る",  cat:"fun",     emoji:"💤",label:"もう一回寝る", pose:"tucking self back in bed, absolutely no hesitation"},
+  {text:"運動した！",    cat:"daily",   emoji:"💪",label:"運動した",     pose:"triumphant fist pump post-workout, proud athletic expression"},
+  {text:"筋肉痛つらい",  cat:"fun",     emoji:"😭",label:"筋肉痛つらい", pose:"walking stiffly post-workout, dramatic suffering"},
+  {text:"お腹すいた〜",  cat:"fun",     emoji:"🍜",label:"お腹すいた",   pose:"clutching stomach, teary hungry eyes, drooling"},
+  {text:"満腹〜",        cat:"fun",     emoji:"😋",label:"満腹",         pose:"round satisfied belly, utterly content after huge meal"},
+  {text:"美味しすぎる",  cat:"emotion", emoji:"🤤",label:"美味しすぎる", pose:"eyes rolling back in ecstasy, hands clasped divine taste"},
+  {text:"休みたい",      cat:"fun",     emoji:"🌴",label:"休みたい",     pose:"dreaming of hammock island, drifting off vacation mode"},
+  {text:"旅行行きたい",  cat:"daily",   emoji:"✈️",label:"旅行行きたい", pose:"arms open flying pose, wanderlust dreamy expression"},
+  {text:"最高の週末",    cat:"emotion", emoji:"🌈",label:"最高の週末",   pose:"arms raised celebrating perfect weekend, glowing happiness"},
+  {text:"ゆっくりしてる",cat:"daily",   emoji:"😌",label:"ゆっくりしてる",pose:"lounging peacefully, completely relaxed expression"},
+  {text:"なにもしたくない",cat:"fun",   emoji:"🫥",label:"なにもしたくない",pose:"melting into sofa, zero motivation, ultimate relaxation"},
+  {text:"今日も最高",    cat:"emotion", emoji:"✨",label:"今日も最高",   pose:"arms spread wide basking in sunshine, radiant happy glow"},
 ];
+const TREND_SERIFS = SERIF_POOL.slice(0, 40);
 
 function refreshSerifs(){
-  // 選択中のtextを記憶してシャッフル後も維持
-  const prevSelected=new Set(selectedSerifs);
-  const shuffled=[...TREND_SERIFS].sort(()=>Math.random()-0.5);
-  aiSerifs=shuffled;
-  // textベースなのでシャッフル後もそのまま維持される
-  selectedSerifs=prevSelected;
+  serifPageIndex=(serifPageIndex+1)%4;
+  aiSerifs=SERIF_POOL.slice(serifPageIndex*40,(serifPageIndex+1)*40);
+  selectedSerifs=new Set();
+  aiSerifs.slice(0,stampCount).forEach(s=>selectedSerifs.add(s.text));
   renderSerifCheckList();
+  renderSelectedSummary();
+  const labels=['トレンド','日常・ていねい','友達・カジュアル','トレンド・スラング'];
+  showToast('↺ '+labels[serifPageIndex]+' に入替えました');
 }
 
 function renderSerifCheckList(){
@@ -808,10 +926,6 @@ function generateAll(){
     // 選択済みセリフをtextで照合
     textList=source.filter(s=>selectedSerifs.has(s.text));
     if(textList.length===0) textList=source; // 何も選んでいなければ全部
-  }
-  // 追加セリフを末尾に追加
-  if(extraSerifs&&extraSerifs.length>0){
-    textList=[...textList,...extraSerifs];
   }
   // タブ・メインは1個に制限
   if(stampType.type==='main'||stampType.type==='tab'){
