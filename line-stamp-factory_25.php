@@ -31,23 +31,45 @@ if (!$is_paid && $days_left <= 0) {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>無料体験終了のご案内</title>
+        <title>LINEスタンププロンプトファクトリー</title>
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;800&display=swap" rel="stylesheet">
         <style>
-            body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f8f9fa; }
-            .container { text-align: center; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 500px; }
-            h2 { color: #333; }
-            .price { font-size: 24px; color: #e44d26; font-weight: bold; margin: 20px 0; }
-            .btn { display: inline-block; background: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; transition: background 0.3s; }
-            .btn:hover { background: #0056b3; }
+            *{box-sizing:border-box;margin:0;padding:0;}
+            body{font-family:"Noto Sans JP",sans-serif;display:flex;flex-direction:column;min-height:100vh;background:#f0faf3;}
+            .top-bar{background:#06C755;border-bottom:4px solid #00B900;padding:14px 24px;display:flex;align-items:center;gap:12px;}
+            .top-bar .icon{width:36px;height:36px;border:2px solid rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center;font-size:18px;}
+            .top-bar .title{font-size:18px;font-weight:800;color:#fff;letter-spacing:0.08em;}
+            .wrap{flex:1;display:flex;justify-content:center;align-items:center;padding:24px;}
+            .card{background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.08);max-width:480px;width:100%;padding:40px 32px;text-align:center;}
+            .badge{display:inline-block;background:#e8fdf0;color:#00B900;border:1px solid #b0e8c4;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:0.1em;margin-bottom:20px;}
+            h2{font-size:22px;font-weight:800;color:#1a1a1a;margin-bottom:12px;}
+            p{font-size:14px;color:#555;line-height:1.7;margin-bottom:16px;}
+            .price-box{background:#f0faf3;border:2px solid #06C755;border-radius:8px;padding:16px 24px;margin:20px 0;}
+            .price-box .label{font-size:12px;color:#00B900;font-weight:700;letter-spacing:0.1em;margin-bottom:4px;}
+            .price-box .amount{font-size:28px;font-weight:800;color:#1a1a1a;}
+            .price-box .amount span{font-size:14px;font-weight:400;color:#555;}
+            .btn{display:block;background:#06C755;color:#fff;padding:16px;border-radius:8px;font-size:16px;font-weight:800;text-decoration:none;letter-spacing:0.05em;transition:background .2s;margin-top:8px;}
+            .btn:hover{background:#00B900;}
+            .note{font-size:11px;color:#aaa;margin-top:16px;}
         </style>
     </head>
     <body>
-        <div class="container">
-            <h2>無料体験期間が終了しました</h2>
-            <p>7日間の無料体験をご利用いただきありがとうございました。<br>引き続きスタンプ作成機能を利用するには、サブスクリプション登録が必要です。</p>
-            <p class="price">利用料金：月額 1,000円</p>
-            <a href="https://buy.stripe.com/3cI4gy9wQ0qg9kU5ACdby00" class="btn">月額1,000円で利用を再開する</a>
-            <p style="font-size: 12px; color: #999; margin-top: 20px;">※いつでも解約可能です。</p>
+        <div class="top-bar">
+            <div class="icon">🏭</div>
+            <div class="title">LINEスタンププロンプトファクトリー</div>
+        </div>
+        <div class="wrap">
+            <div class="card">
+                <div class="badge">FREE TRIAL ENDED</div>
+                <h2>無料体験期間が終了しました</h2>
+                <p>7日間の無料体験をご利用いただきありがとうございました。<br>引き続きご利用いただくには、月額プランへのご登録をお願いします。</p>
+                <div class="price-box">
+                    <div class="label">月額プラン</div>
+                    <div class="amount">¥1,000<span> / 月（税込）</span></div>
+                </div>
+                <a href="https://buy.stripe.com/3cI4gy9wQ0qg9kU5ACdby00" class="btn">月額プランに登録して再開する</a>
+                <p class="note">※クレジットカード払い　※いつでも解約可能</p>
+            </div>
         </div>
     </body>
     </html>';
@@ -94,15 +116,15 @@ body{
     repeating-linear-gradient(0deg,transparent,transparent 27px,rgba(0,0,0,0.025) 27px,rgba(0,0,0,0.025) 28px),
     repeating-linear-gradient(90deg,transparent,transparent 27px,rgba(0,0,0,0.015) 27px,rgba(0,0,0,0.015) 28px);
 }
-.header{background:var(--ink);border-bottom:4px solid var(--vermillion);position:sticky;top:0;z-index:100;}
+.header{background:#06C755;border-bottom:4px solid #00B900;position:sticky;top:0;z-index:100;}
 .header-inner{max-width:1280px;margin:0 auto;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;}
 .header-left{display:flex;align-items:center;gap:14px;}
-.header-stamp{width:42px;height:42px;border:2px solid var(--vermillion);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
-.site-title{font-family:'Shippori Mincho',serif;font-size:20px;font-weight:800;letter-spacing:0.12em;color:var(--paper);}
-.site-title span{color:var(--vermillion);}
-.hdiv{width:1px;height:24px;background:rgba(255,255,255,0.12);}
-.header-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.2em;color:rgba(245,240,232,0.35);text-transform:uppercase;}
-.header-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;border:1px solid rgba(192,57,43,0.5);color:var(--vermillion);padding:5px 12px;text-transform:uppercase;}
+.header-stamp{width:42px;height:42px;border:2px solid rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.site-title{font-family:'Shippori Mincho',serif;font-size:20px;font-weight:800;letter-spacing:0.12em;color:#fff;}
+.site-title span{color:rgba(255,255,255,0.85);}
+.hdiv{width:1px;height:24px;background:rgba(255,255,255,0.3);}
+.header-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.2em;color:rgba(255,255,255,0.6);text-transform:uppercase;}
+.header-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;border:1px solid rgba(255,255,255,0.6);color:#fff;padding:5px 12px;text-transform:uppercase;}
 .wrap{max-width:1280px;margin:0 auto;padding:28px 24px;display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start;}
 .panel{background:var(--paper2);border:1.5px solid var(--border);position:sticky;top:80px;}
 .panel-head{background:var(--ink2);color:var(--paper);padding:10px 18px;font-family:'Shippori Mincho',serif;font-size:13px;font-weight:700;letter-spacing:0.18em;display:flex;align-items:center;gap:10px;}
@@ -249,7 +271,7 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
 </head>
 <body>
 
-<div style="background: #fff3cd; color: #856404; padding: 12px; border-bottom: 2px solid #ffeeba; text-align: center; font-weight: bold; font-family: sans-serif; position: sticky; top: 0; z-index: 9999;">
+<div style="background: #e8fdf0; color: #007a33; padding: 10px; border-bottom: 2px solid #b0e8c4; text-align: center; font-weight: bold; font-family: sans-serif; font-size: 13px; position: sticky; top: 0; z-index: 9999;">
     <?php echo $message; ?>
 </div>
 
@@ -869,7 +891,7 @@ function addCustomText(txt){if(!txt||customTexts.length>=48||customTexts.include
 function saveCustomTexts(){try{localStorage.setItem('customTexts',JSON.stringify(customTexts));}catch(e){}}
 function renderCustomTags(){const c=document.getElementById('customTags');if(!c)return;c.innerHTML='';customTexts.forEach((t,i)=>{const d=document.createElement('div');d.className='ctag';d.innerHTML=`<span>${t}</span><button onclick="removeCustom(${i})">×</button>`;c.appendChild(d);});}
 function removeCustom(i){customTexts.splice(i,1);saveCustomTexts();renderCustomTags();}
-function resetAll(){if(!confirm('全ての設定をリセットしますか？\n（カスタム入力のセリフは保持されます）'))return;serifPageIndex=0;aiSerifs=SERIF_POOL.slice(0,40);selectedSerifs=new Set();aiSerifs.slice(0,stampCount).forEach(s=>selectedSerifs.add(s.text));selectedStyle='cute kawaii anime illustration style';document.querySelectorAll('.style-btn').forEach(b=>b.classList.remove('active'));const first=document.querySelector('.style-btn[data-style="cute kawaii anime illustration style"]');if(first)first.classList.add('active');document.getElementById('selectedStyleDisplay').textContent='選択中 → アニメスタイル (Anime Style)';document.getElementById('charDesc').value='';renderCustomTags();renderSerifCheckList();renderSelectedSummary();document.getElementById('outputArea').innerHTML='<div class="empty-state"><div class="empty-icon">🏭</div><div class="empty-rule"></div><h2>待機中</h2><p>左のパネルでキャラクターを設定し<br>「プロンプトを一括生成」を押してください<br><br>40個分のプロンプトが一瞬で生成されます</p></div>';showToast('✅ リセット完了');}
+function resetAll(){serifPageIndex=0;aiSerifs=SERIF_POOL.slice(0,40);selectedSerifs=new Set();aiSerifs.slice(0,stampCount).forEach(s=>selectedSerifs.add(s.text));selectedStyle='cute kawaii anime illustration style';document.querySelectorAll('.style-btn').forEach(b=>b.classList.remove('active'));const first=document.querySelector('.style-btn[data-style="cute kawaii anime illustration style"]');if(first)first.classList.add('active');document.getElementById('selectedStyleDisplay').textContent='選択中 → アニメスタイル (Anime Style)';document.getElementById('charDesc').value='';renderCustomTags();renderSerifCheckList();renderSelectedSummary();document.getElementById('outputArea').innerHTML='<div class="empty-state"><div class="empty-icon">🏭</div><div class="empty-rule"></div><h2>待機中</h2><p>左のパネルでキャラクターを設定し<br>「プロンプトを一括生成」を押してください<br><br>40個分のプロンプトが一瞬で生成されます</p></div>';showToast('✅ リセット完了');}
 
 // ── 追加セリフ ──
 
