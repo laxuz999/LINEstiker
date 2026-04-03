@@ -1,12 +1,32 @@
 <?php
-// --- 1. 支払い済みかどうかの判定 ---
-$is_paid = $_COOKIE['is_paid'] ?? 'false';
+// --- トークンファイルの読み書き ---
+$data_dir = __DIR__ . '/data';
+$token_file = $data_dir . '/paid_tokens.json';
 
-// Stripeから戻ってきた直後（URLにsession_idがある）なら、支払い済みクッキーを発行
+function load_tokens($f) {
+    if (!file_exists($f)) return [];
+    return json_decode(file_get_contents($f), true) ?: [];
+}
+function save_tokens($f, $tokens) {
+    file_put_contents($f, json_encode($tokens));
+}
+
+// --- 1. 支払い済みかどうかの判定（サーバーサイドトークン照合）---
+$paid_token = $_COOKIE['paid_token'] ?? '';
+$tokens = load_tokens($token_file);
+$is_paid = ($paid_token !== '' && isset($tokens[$paid_token]));
+
+// Stripeから戻ってきた直後（URLにsession_idがある）なら、サーバーサイドトークンを発行
 // cs_ で始まる正規のStripe session IDのみ受け付ける（URL偽造防止）
 if (isset($_GET['session_id']) && strpos($_GET['session_id'], 'cs_') === 0) {
-    setcookie('is_paid', 'true', time() + (86400 * 365), "/");
-    $is_paid = 'true';
+    if (!$is_paid) {
+        $new_token = bin2hex(random_bytes(32));
+        $tokens[$new_token] = ['created_at' => time(), 'session_id' => $_GET['session_id']];
+        if (!is_dir($data_dir)) mkdir($data_dir, 0755, true);
+        save_tokens($token_file, $tokens);
+        setcookie('paid_token', $new_token, time() + (86400 * 365), "/", "", true, true);
+        $is_paid = true;
+    }
     // URLをクリーンにしてリダイレクト（ブックマーク汚染防止）
     header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
     exit;
@@ -18,7 +38,7 @@ $start_date = $_COOKIE[$cookie_name] ?? null;
 
 if (!$start_date) {
     $start_date = time();
-    setcookie($cookie_name, $start_date, time() + (86400 * 365), "/");
+    setcookie($cookie_name, $start_date, time() + (86400 * 365), "/", "", false, true);
 }
 
 // --- 3. 経過日数と残り日数を計算 ---
@@ -27,7 +47,7 @@ $days_passed = floor($seconds_passed / 86400);
 $days_left = 7 - $days_passed;
 
 // --- 4. 判定：支払っていない 且つ 7日過ぎた場合のみブロック ---
-if ($is_paid !== 'true' && $days_left <= 0) {
+if (!$is_paid && $days_left <= 0) {
     echo '<!DOCTYPE html>
     <html lang="ja">
     <head>
@@ -79,7 +99,7 @@ if ($is_paid !== 'true' && $days_left <= 0) {
 }
 
 // --- 5. 案内メッセージの作成 ---
-if ($is_paid === 'true') {
+if ($is_paid) {
     $message = "【ご購読ありがとうございます】無制限にご利用いただけます。";
 } else {
     $message = "【無料体験中】あと " . $days_left . " 日間で終了します。終了後は月額1,000円で継続いただけます。";
@@ -456,6 +476,9 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
 </div>
 
 <script>
+// PHP→JS変数（トライアル・支払い状態）
+const _PHP_IS_PAID = <?php echo $is_paid ? 'true' : 'false'; ?>;
+const _PHP_TRIAL_START = <?php echo (int)$start_date; ?>;
 const FULL_40=[
   {text:"おはよう！",cat:"daily",emoji:"🌅",label:"おはよう",pose:"stretching arms wide open with a big bright smile, eyes sparkling, sunrise glow"},
   {text:"おやすみ",cat:"daily",emoji:"🌙",label:"おやすみ",pose:"eyes drooping sleepy, holding a pillow, yawning with tiny sleepy smile, ZZZ floating"},
@@ -849,6 +872,47 @@ aiSerifs.slice(0,stampCount).forEach(s=>selectedSerifs.add(s.text));
 renderSerifCheckList();
 renderCustomTags();
 renderExtraSerifList();
+
+// ── トライアルlocalStorageバックアップ ──
+(function(){
+  const _KEY='lsf_trial_start';
+  const _stored=localStorage.getItem(_KEY);
+  if(!_stored){
+    localStorage.setItem(_KEY,_PHP_TRIAL_START);
+  } else {
+    const _ls=parseInt(_stored,10);
+    const _days=Math.floor((Date.now()/1000-_ls)/86400);
+    if(!_PHP_IS_PAID && _days>=7){
+      // クッキーが削除されてPHPが通してしまった場合のJS側フォールバック
+      document.body.innerHTML='<div style="display:flex;flex-direction:column;min-height:100vh;background:#f0faf3;font-family:\'Noto Sans JP\',sans-serif;"><div style="background:#06C755;border-bottom:4px solid #00B900;padding:14px 24px;"><span style="font-size:18px;font-weight:800;color:#fff;">🏭 LINEスタンププロンプトファクトリー</span></div><div style="flex:1;display:flex;justify-content:center;align-items:center;padding:24px;"><div style="background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.08);max-width:480px;width:100%;padding:40px 32px;text-align:center;"><div style="display:inline-block;background:#e8fdf0;color:#00B900;border:1px solid #b0e8c4;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;margin-bottom:20px;">FREE TRIAL ENDED</div><h2 style="font-size:22px;font-weight:800;color:#1a1a1a;margin-bottom:12px;">無料体験期間が終了しました</h2><p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:16px;">7日間の無料体験をご利用いただきありがとうございました。<br>引き続きご利用いただくには、月額プランへのご登録をお願いします。</p><div style="background:#f0faf3;border:2px solid #06C755;border-radius:8px;padding:16px 24px;margin:20px 0;"><div style="font-size:12px;color:#00B900;font-weight:700;margin-bottom:4px;">月額プラン</div><div style="font-size:28px;font-weight:800;color:#1a1a1a;">¥1,000<span style="font-size:14px;font-weight:400;color:#555;"> / 月（税込）</span></div></div><a href="https://buy.stripe.com/3cI4gy9wQ0qg9kU5ACdby00" style="display:block;background:#06C755;color:#fff;padding:16px;border-radius:8px;font-size:16px;font-weight:800;text-decoration:none;margin-top:8px;">月額プランに登録して再開する</a><p style="font-size:11px;color:#aaa;margin-top:16px;">※クレジットカード払い　※いつでも解約可能</p></div></div></div>';
+    }
+  }
+})();
+
+// ── キャラクター設定のlocalStorage復元 ──
+(function(){
+  const savedDesc=localStorage.getItem('lsf_charDesc');
+  const savedStyle=localStorage.getItem('lsf_style');
+  if(savedDesc){const el=document.getElementById('charDesc');if(el)el.value=savedDesc;}
+  if(savedStyle){
+    selectedStyle=savedStyle;
+    document.querySelectorAll('.style-btn[data-style]').forEach(b=>{
+      const panel=b.closest('.style-cat-panel');
+      if(b.dataset.style===savedStyle){
+        if(panel)panel.querySelectorAll('.style-btn').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+        const ja=b.querySelector('.ja')?b.querySelector('.ja').textContent:b.textContent;
+        const en=b.querySelector('.en')?b.querySelector('.en').textContent:'';
+        const disp=document.getElementById('selectedStyleDisplay');
+        if(disp)disp.textContent='選択中 → '+ja+(en?' ('+en+')':'');
+      }
+    });
+  }
+  // charDescの変更を自動保存
+  const charEl=document.getElementById('charDesc');
+  if(charEl)charEl.addEventListener('input',()=>{localStorage.setItem('lsf_charDesc',charEl.value);});
+})();
+
 // 説明文を初期設定
 
 
@@ -869,6 +933,7 @@ document.addEventListener('click',e=>{
   if(panel) panel.querySelectorAll('.style-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   selectedStyle=btn.dataset.style;
+  try{localStorage.setItem('lsf_style',selectedStyle);}catch(e){}
   const ja=btn.querySelector('.ja')?btn.querySelector('.ja').textContent:btn.textContent;
   const en=btn.querySelector('.en')?btn.querySelector('.en').textContent:'';
   document.getElementById('selectedStyleDisplay').textContent='選択中 → '+ja+(en?' ('+en+')':'');
