@@ -1,0 +1,1142 @@
+<?php
+// --- 支払い完了して戻ってきた時の処理 ---
+// StripeのPayment Linkの成功URLに ?session_id={CHECKOUT_SESSION_ID} を設定しておく
+if (isset($_GET['session_id']) && strpos($_GET['session_id'], 'cs_') === 0) {
+    setcookie('is_paid', 'true', time() + (86400 * 365), "/");
+    $_COOKIE['is_paid'] = 'true';
+    // URLからsession_idを取り除いてリダイレクト（ブックマーク汚染防止）
+    header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
+    exit;
+}
+$is_paid = ($_COOKIE['is_paid'] ?? '') === 'true';
+
+// --- 1. 無料体験の開始日をチェック（クッキーを使用） ---
+$cookie_name = 'trial_start_date';
+$start_date = $_COOKIE[$cookie_name] ?? null;
+
+if (!$start_date) {
+    $start_date = time();
+    setcookie($cookie_name, $start_date, time() + (86400 * 365), "/");
+}
+
+// --- 2. 経過日数と残り日数を計算 ---
+$seconds_passed = time() - $start_date;
+$days_passed = floor($seconds_passed / 86400);
+$days_left = 7 - $days_passed; // 7日間無料
+
+// --- 3. 未払い かつ 期限切れ の場合のみブロック ---
+if (!$is_paid && $days_left <= 0) {
+    echo '<!DOCTYPE html>
+    <html lang="ja">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>無料体験終了のご案内</title>
+        <style>
+            body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f8f9fa; }
+            .container { text-align: center; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 500px; }
+            h2 { color: #333; }
+            .price { font-size: 24px; color: #e44d26; font-weight: bold; margin: 20px 0; }
+            .btn { display: inline-block; background: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; transition: background 0.3s; }
+            .btn:hover { background: #0056b3; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>無料体験期間が終了しました</h2>
+            <p>7日間の無料体験をご利用いただきありがとうございました。<br>引き続きスタンプ作成機能を利用するには、サブスクリプション登録が必要です。</p>
+            <p class="price">利用料金：月額 1,000円</p>
+            <a href="https://buy.stripe.com/3cI4gy9wQ0qg9kU5ACdby00" class="btn">月額1,000円で利用を再開する</a>
+            <p style="font-size: 12px; color: #999; margin-top: 20px;">※いつでも解約可能です。</p>
+        </div>
+    </body>
+    </html>';
+    exit;
+}
+
+// --- 4. バナーメッセージ ---
+if ($is_paid) {
+    $message = "【ご利用中】サブスクリプション登録済みです。いつもありがとうございます。";
+} else {
+    $message = "【無料体験中】あと " . $days_left . " 日間で終了します。終了後は月額1,000円で継続いただけます。";
+}
+?>
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LINEスタンププロンプトファクトリー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #f5f0e8;
+  --paper2: #ede8dc;
+  --paper3: #e2dcd0;
+  --ink: #1c1a16;
+  --ink2: #3a3530;
+  --vermillion: #c0392b;
+  --vermillion2: #9b2d22;
+  --muted: #7a7060;
+  --border: #c8bfaa;
+  --border2: #a89f8c;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Noto Sans JP',sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  min-height:100vh;
+  background-image:
+    repeating-linear-gradient(0deg,transparent,transparent 27px,rgba(0,0,0,0.025) 27px,rgba(0,0,0,0.025) 28px),
+    repeating-linear-gradient(90deg,transparent,transparent 27px,rgba(0,0,0,0.015) 27px,rgba(0,0,0,0.015) 28px);
+}
+.header{background:var(--ink);border-bottom:4px solid var(--vermillion);position:sticky;top:0;z-index:100;}
+.header-inner{max-width:1280px;margin:0 auto;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-left{display:flex;align-items:center;gap:14px;}
+.header-stamp{width:42px;height:42px;border:2px solid var(--vermillion);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.site-title{font-family:'Shippori Mincho',serif;font-size:20px;font-weight:800;letter-spacing:0.12em;color:var(--paper);}
+.site-title span{color:var(--vermillion);}
+.hdiv{width:1px;height:24px;background:rgba(255,255,255,0.12);}
+.header-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.2em;color:rgba(245,240,232,0.35);text-transform:uppercase;}
+.header-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;border:1px solid rgba(192,57,43,0.5);color:var(--vermillion);padding:5px 12px;text-transform:uppercase;}
+.wrap{max-width:1280px;margin:0 auto;padding:28px 24px;display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start;}
+.panel{background:var(--paper2);border:1.5px solid var(--border);position:sticky;top:80px;}
+.panel-head{background:var(--ink2);color:var(--paper);padding:10px 18px;font-family:'Shippori Mincho',serif;font-size:13px;font-weight:700;letter-spacing:0.18em;display:flex;align-items:center;gap:10px;}
+.panel-head::before{content:'';width:3px;height:14px;background:var(--vermillion);flex-shrink:0;}
+.panel-body{padding:18px;}
+.section{margin-bottom:20px;}
+.section:last-child{margin-bottom:0;}
+.lbl{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
+.lbl::before{content:'';width:12px;height:1px;background:var(--border2);}
+textarea,input[type="text"]{width:100%;padding:10px 12px;border:1.5px solid var(--border);background:var(--paper);color:var(--ink);font-family:'Noto Sans JP',sans-serif;font-size:13px;outline:none;transition:border-color .15s;resize:vertical;border-radius:0;}
+textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);background:#fff;}
+.mode-row{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--border);}
+.mode-btn{padding:10px;border:none;background:var(--paper);color:var(--muted);font-family:'Noto Sans JP',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;text-align:center;border-right:1px solid var(--border);border-radius:0;}
+.mode-btn:last-child{border-right:none;}
+.mode-btn.active{background:var(--ink);color:var(--paper);}
+.tab-row{display:flex;border-bottom:1.5px solid var(--border);margin-bottom:14px;}
+.tab{padding:8px 14px;border:none;background:none;font-family:'Noto Sans JP',sans-serif;font-size:11px;font-weight:500;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1.5px;transition:all .15s;border-radius:0;}
+.tab.active{color:var(--vermillion);border-bottom-color:var(--vermillion);}
+.style-cat-tabs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
+.style-cat-tab{padding:4px 10px;border:1px solid var(--border2);background:var(--paper);font-family:'Noto Sans JP',sans-serif;font-size:11px;cursor:pointer;color:var(--ink2);transition:all .15s;white-space:nowrap;border-radius:0;}
+.style-cat-tab:hover{border-color:var(--ink);}
+.style-cat-tab.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+.style-cat-panel{display:none;}
+.style-cat-panel.active{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.style-btn{padding:7px 8px;border:1px solid var(--border);background:var(--paper);cursor:pointer;font-family:'Noto Sans JP',sans-serif;text-align:left;transition:all .15s;line-height:1.3;border-radius:0;}
+.stype-btn{padding:7px 8px;border:1px solid var(--border);background:var(--paper);cursor:pointer;font-family:'Noto Sans JP',sans-serif;text-align:left;transition:all .15s;line-height:1.3;border-radius:0;}
+.stype-btn:hover{border-color:var(--ink2);background:var(--paper3);}
+.stype-btn.active{border-color:var(--vermillion);background:var(--ink);color:var(--paper);}
+.stype-btn.active .en{color:rgba(245,240,232,.5);}
+.style-btn:hover{border-color:var(--ink2);background:var(--paper3);}
+.style-btn.active{border-color:var(--vermillion);background:var(--ink);color:var(--paper);}
+.style-btn .ja{display:block;font-size:11px;font-weight:700;}
+.style-btn .en{display:block;font-size:9px;color:var(--muted);margin-top:1px;font-family:'IBM Plex Mono',monospace;}
+.style-btn.active .en{color:rgba(245,240,232,.5);}
+.selected-style-disp{margin-top:10px;padding:8px 12px;background:var(--paper);border-left:3px solid var(--vermillion);font-size:11px;color:var(--ink2);font-family:'IBM Plex Mono',monospace;}
+.custom-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+.ctag{display:flex;align-items:center;gap:4px;padding:3px 8px;background:var(--ink);color:var(--paper);font-size:11px;font-weight:500;}
+.ctag button{background:none;border:none;cursor:pointer;color:rgba(245,240,232,.6);font-size:13px;line-height:1;padding:0;}
+.preview-tag{font-size:10px;padding:2px 8px;background:var(--paper);border:1px solid var(--border);color:var(--ink2);font-family:'IBM Plex Mono',monospace;cursor:default;}
+.preview-tags-wrap{display:flex;flex-wrap:wrap;gap:4px;}
+.preview-tag-cat{font-size:9px;padding:2px 8px;font-family:'IBM Plex Mono',monospace;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border:1px solid;margin-top:4px;width:100%;}
+.cat-daily{background:#f0f5e8;color:#3a5a10;border-color:#b8d080;}
+.cat-emotion{background:#fdf0f0;color:#8b2020;border-color:#e8a0a0;}
+.cat-reaction{background:#f0f0fd;color:#202080;border-color:#a0a0e8;}
+.cat-work{background:#fdf8f0;color:#7a4800;border-color:#e8c880;}
+.cat-fun{background:#f8f0fd;color:#5a1080;border-color:#c890e0;}
+.serif-check-item{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 10px;margin:2px;
+  border:1.5px solid var(--border);background:var(--paper);
+  cursor:pointer;font-family:'Noto Sans JP',sans-serif;font-size:11px;font-weight:700;
+  transition:all .12s;user-select:none;
+}
+.serif-check-item:hover{border-color:var(--ink2);background:var(--paper3);}
+.serif-check-item.checked{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+.serif-check-item .serif-emoji{font-size:13px;}
+.serif-cat-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:5px 0 4px;margin-top:8px;
+  border-bottom:1px solid var(--border);margin-bottom:4px;
+}
+.serif-cat-head-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);}
+.serif-cat-head-btn{padding:2px 8px;background:none;border:1px solid var(--border2);font-family:inherit;font-size:9px;font-weight:700;cursor:pointer;color:var(--muted);}
+.serif-cat-head-btn:hover{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+.selected-serif-tag{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;background:var(--ink);color:var(--paper);font-size:11px;font-weight:700;font-family:'Noto Sans JP',sans-serif;}
+.count-btn{padding:8px 0;border:1px solid var(--border);background:var(--paper);font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-radius:0;flex:1;min-width:36px;text-align:center;transition:all .15s;}
+.count-btn:hover{border-color:var(--ink);color:var(--ink);}
+.count-btn.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+.mini-btn.expand{background:var(--paper3);color:var(--ink2);border-color:var(--border2);font-size:10px;}
+.mini-btn.expand:hover{background:var(--ink);color:var(--paper);}
+.gen-btn{width:100%;padding:16px;background:var(--vermillion);border:none;color:#fff;font-family:'Shippori Mincho',serif;font-size:17px;font-weight:800;letter-spacing:0.18em;cursor:pointer;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:0;position:relative;overflow:hidden;}
+.gen-btn::after{content:'';position:absolute;inset:2px;border:1px solid rgba(255,255,255,.18);pointer-events:none;}
+.gen-btn:hover{background:var(--vermillion2);}
+.gen-btn:active{transform:scale(.99);}
+.right-col{min-height:300px;}
+.stats-bar{display:flex;align-items:stretch;border:1.5px solid var(--border);background:var(--ink);margin-bottom:16px;}
+.stat{flex:1;padding:14px 16px;text-align:center;border-right:1px solid rgba(255,255,255,.08);}
+.stat:last-child{border-right:none;}
+.stat-num{font-family:'Shippori Mincho',serif;font-size:28px;font-weight:800;color:var(--paper);line-height:1;}
+.stat-label{font-size:9px;letter-spacing:.16em;color:rgba(245,240,232,.4);text-transform:uppercase;margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+.action-row{display:flex;gap:8px;margin-bottom:16px;}
+.action-btn{flex:1;padding:11px;border:1.5px solid var(--border2);background:var(--paper2);font-family:'Noto Sans JP',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;color:var(--ink);display:flex;align-items:center;justify-content:center;gap:6px;border-radius:0;}
+.action-btn:hover{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+.action-btn.copy-all{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+.action-btn.copy-all:hover{background:var(--ink2);}
+.prompt-grid{display:grid;gap:10px;}
+.prompt-card{background:var(--paper2);border:1.5px solid var(--border);transition:border-color .15s;}
+.prompt-card:hover{border-color:var(--ink2);}
+.prompt-card.copied{border-color:var(--vermillion);background:#fff8f7;}
+.card-header{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--paper3);border-bottom:1px solid var(--border);}
+.card-num{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);min-width:28px;}
+.card-label{font-size:13px;font-weight:700;flex:1;}
+.card-tag{font-family:'IBM Plex Mono',monospace;font-size:9px;padding:2px 8px;letter-spacing:.08em;border:1px solid;}
+.tag-daily{background:#f0f5e8;color:#3a5a10;border-color:#b8d080;}
+.tag-emotion{background:#fdf0f0;color:#8b2020;border-color:#e8a0a0;}
+.tag-reaction{background:#f0f0fd;color:#202080;border-color:#a0a0e8;}
+.tag-work{background:#fdf8f0;color:#7a4800;border-color:#e8c880;}
+.tag-fun{background:#f8f0fd;color:#5a1080;border-color:#c890e0;}
+.card-body{padding:10px 12px;}
+.prompt-text{font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.7;color:var(--ink2);background:var(--paper);border:1px solid var(--border);padding:8px 10px;margin-bottom:8px;overflow:hidden;max-height:3.6em;word-break:break-all;}
+.card-footer{display:flex;gap:6px;}
+.mini-btn{flex:1;padding:7px;border:1px solid var(--border2);background:var(--paper);font-family:'Noto Sans JP',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;color:var(--ink);border-radius:0;}
+.mini-btn:hover{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+.mini-btn.copy{background:var(--vermillion);color:#fff;border-color:var(--vermillion2);}
+.mini-btn.copy:hover{background:var(--vermillion2);}
+.empty-state{border:1.5px dashed var(--border2);padding:70px 40px;text-align:center;background:var(--paper2);}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:.45;}
+.empty-state h2{font-family:'Shippori Mincho',serif;font-size:20px;font-weight:700;margin-bottom:10px;letter-spacing:.1em;}
+.empty-state p{font-size:13px;color:var(--muted);line-height:1.8;}
+.empty-rule{width:40px;height:2px;background:var(--vermillion);margin:12px auto;}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:var(--paper);padding:11px 24px;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;border-left:3px solid var(--vermillion);transition:transform .3s cubic-bezier(.34,1.56,.64,1);z-index:999;pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(28,26,22,.88);z-index:300;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--paper);border:2px solid var(--ink);border-top:4px solid var(--vermillion);max-width:660px;width:100%;padding:28px;}
+.modal-title{font-family:'Shippori Mincho',serif;font-size:16px;font-weight:700;letter-spacing:.1em;margin-bottom:4px;}
+.modal-hint{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em;margin-bottom:16px;}
+#modalText{width:100%;padding:14px;border:1.5px solid var(--border);background:var(--ink);color:#a8e890;font-family:'IBM Plex Mono',monospace;font-size:11.5px;line-height:1.75;resize:vertical;outline:none;border-radius:0;}
+.modal-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+#modalCopyBtn{padding:13px;background:var(--vermillion);border:none;color:#fff;font-family:'Shippori Mincho',serif;font-size:15px;font-weight:700;letter-spacing:.12em;cursor:pointer;transition:background .15s;border-radius:0;}
+#modalCopyBtn:hover{background:var(--vermillion2);}
+.modal-close-btn{padding:13px;background:var(--paper2);border:1.5px solid var(--border2);color:var(--ink);font-family:'Noto Sans JP',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:0;}
+.modal-close-btn:hover{background:var(--ink);color:var(--paper);}
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(28,26,22,.9);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:20px;}
+.loading-overlay.show{display:flex;}
+.loading-mark{font-family:'Shippori Mincho',serif;font-size:56px;color:var(--paper);animation:pulse 1s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.loading-text{font-family:'Shippori Mincho',serif;font-size:16px;letter-spacing:.28em;color:var(--paper);}
+.loading-rule{width:60px;height:2px;background:var(--vermillion);animation:xpand 1s ease-in-out infinite alternate;}
+@keyframes xpand{from{width:30px}to{width:90px}}
+@media(max-width:860px){
+  .wrap{grid-template-columns:1fr;}
+  .panel{position:static;}
+  .header-inner{padding:12px 16px;}
+  .header-badge,.hdiv,.header-sub{display:none;}
+  .panel-body{padding:14px;}
+  .style-cat-panel.active{grid-template-columns:1fr 1fr;}
+  .wrap{padding:12px;}
+  .prompt-text{font-size:10px;}
+  .card-header{flex-wrap:wrap;gap:6px;}
+}
+
+</style>
+</head>
+<body>
+
+<div style="background: #fff3cd; color: #856404; padding: 12px; border-bottom: 2px solid #ffeeba; text-align: center; font-weight: bold; font-family: sans-serif; position: sticky; top: 0; z-index: 9999;">
+    <?php echo $message; ?>
+</div>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="header-stamp">🏭</div>
+      <div class="site-title">LINEスタンプ<span>プロンプト</span>ファクトリー</div>
+      <div class="hdiv"></div>
+      <div class="header-sub">Prompt Generator</div>
+    </div>
+    <div class="header-badge">40 Prompts / 1 Click</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="panel">
+    <div class="panel-head">キャラクター設定</div>
+    <div class="panel-body">
+
+      <div class="section">
+        <span class="lbl">キャラクター説明</span>
+        <textarea id="charDesc" rows="3" placeholder="例：丸くてふわふわした白いウサギ。大きな瞳でちょこんと座っている。"></textarea>
+      </div>
+      <div class="section">
+        <span class="lbl">ビジュアルスタイル</span>
+        <div class="style-cat-tabs" id="styleCatTabs">
+          <button class="style-cat-tab active" data-cat="illust">イラスト</button>
+          <button class="style-cat-tab" data-cat="art">アート</button>
+          <button class="style-cat-tab" data-cat="digital">デジタル</button>
+          <button class="style-cat-tab" data-cat="photo">写真</button>
+          <button class="style-cat-tab" data-cat="texture">質感</button>
+        </div>
+        <div id="stylePanel-illust" class="style-cat-panel active">
+          <div class="style-btn active" data-style="cute kawaii anime illustration style"><span class="ja">アニメスタイル</span><span class="en">Anime Style</span></div>
+          <div class="style-btn" data-style="flat design vector illustration style"><span class="ja">フラットデザイン</span><span class="en">Flat Design</span></div>
+          <div class="style-btn" data-style="minimal clean line art illustration"><span class="ja">線画</span><span class="en">Line Art</span></div>
+          <div class="style-btn" data-style="pixel art 16bit retro style"><span class="ja">ドット絵</span><span class="en">Pixel Art</span></div>
+          <div class="style-btn" data-style="american comic book style bold outlines halftone"><span class="ja">アメコミ風</span><span class="en">Comic Book Style</span></div>
+          <div class="style-btn" data-style="Studio Ghibli inspired soft watercolor anime style"><span class="ja">ジブリ風</span><span class="en">Studio Ghibli Style</span></div>
+          <div class="style-btn" data-style="chalk art on blackboard texture style"><span class="ja">チョークアート</span><span class="en">Chalk Art</span></div>
+        </div>
+        <div id="stylePanel-art" class="style-cat-panel">
+          <div class="style-btn" data-style="oil painting style thick brushstrokes rich texture"><span class="ja">油絵</span><span class="en">Oil Painting</span></div>
+          <div class="style-btn" data-style="soft watercolor painting style delicate washes"><span class="ja">水彩画</span><span class="en">Watercolor</span></div>
+          <div class="style-btn" data-style="impressionist painting style loose brushwork dappled light"><span class="ja">印象派</span><span class="en">Impressionism</span></div>
+          <div class="style-btn" data-style="surrealist art style dreamlike bizarre melting forms"><span class="ja">シュルレアリスム</span><span class="en">Surrealism</span></div>
+          <div class="style-btn" data-style="pop art style bold colors Ben-Day dots Andy Warhol"><span class="ja">ポップアート</span><span class="en">Pop Art</span></div>
+          <div class="style-btn" data-style="Art Nouveau style organic flowing lines decorative ornamental"><span class="ja">アール・ヌーヴォー</span><span class="en">Art Nouveau</span></div>
+          <div class="style-btn" data-style="ukiyo-e Japanese woodblock print style flat colors bold outlines"><span class="ja">浮世絵</span><span class="en">Ukiyo-e</span></div>
+        </div>
+        <div id="stylePanel-digital" class="style-cat-panel">
+          <div class="style-btn" data-style="3D render style smooth shading subsurface scattering studio lighting"><span class="ja">3Dレンダリング</span><span class="en">3D Render</span></div>
+          <div class="style-btn" data-style="isometric 3D illustration style clean geometric"><span class="ja">アイソメトリック</span><span class="en">Isometric</span></div>
+          <div class="style-btn" data-style="cyberpunk neon glow dark futuristic city style"><span class="ja">サイバーパンク</span><span class="en">Cyberpunk</span></div>
+          <div class="style-btn" data-style="steampunk Victorian brass gears mechanical style"><span class="ja">スチームパンク</span><span class="en">Steampunk</span></div>
+          <div class="style-btn" data-style="low poly geometric faceted 3D art style"><span class="ja">ローポリ</span><span class="en">Low Poly</span></div>
+          <div class="style-btn" data-style="claymation stop motion clay texture handmade style"><span class="ja">粘土細工風</span><span class="en">Claymation</span></div>
+          <div class="style-btn" data-style="voxel art 3D pixel blocks colorful style"><span class="ja">ボクセルアート</span><span class="en">Voxel Art</span></div>
+        </div>
+        <div id="stylePanel-photo" class="style-cat-panel">
+          <div class="style-btn" data-style="photorealistic ultra detailed hyperrealistic photograph style"><span class="ja">フォトリアル</span><span class="en">Photorealistic</span></div>
+          <div class="style-btn" data-style="monochrome black and white high contrast photography style"><span class="ja">モノクロ</span><span class="en">Monochrome</span></div>
+          <div class="style-btn" data-style="long exposure photography light trails silky smooth style"><span class="ja">長時間露光</span><span class="en">Long Exposure</span></div>
+          <div class="style-btn" data-style="macro photography extreme close-up fine details bokeh background"><span class="ja">マクロ撮影</span><span class="en">Macro Photography</span></div>
+          <div class="style-btn" data-style="vintage film photography grain light leak warm tones Kodak style"><span class="ja">ヴィンテージ写真</span><span class="en">Film Photography</span></div>
+          <div class="style-btn" data-style="shallow depth of field beautiful bokeh soft out-of-focus background"><span class="ja">ボケ味</span><span class="en">Bokeh</span></div>
+        </div>
+        <div id="stylePanel-texture" class="style-cat-panel">
+          <div class="style-btn" data-style="soft pastel color palette dreamy gentle muted tones illustration"><span class="ja">パステルカラー</span><span class="en">Pastel Color</span></div>
+          <div class="style-btn" data-style="neon art glowing vibrant electric colors dark background"><span class="ja">ネオンアート</span><span class="en">Neon Art</span></div>
+          <div class="style-btn" data-style="paper cutout craft art layered paper illustration style kirigami"><span class="ja">切り絵</span><span class="en">Paper Cutout</span></div>
+          <div class="style-btn" data-style="stained glass colorful mosaic leaded glass art style"><span class="ja">ステンドグラス</span><span class="en">Stained Glass</span></div>
+          <div class="style-btn" data-style="ink wash painting fluid alcohol ink spreading texture style"><span class="ja">インク滴下</span><span class="en">Ink Wash</span></div>
+          <div class="style-btn" data-style="graffiti street art style spray paint bold urban"><span class="ja">グラフィティ</span><span class="en">Graffiti</span></div>
+        </div>
+        <div class="selected-style-disp" id="selectedStyleDisplay">選択中 → アニメスタイル (Anime Style)</div>
+      </div>
+    </div>
+
+    <div class="panel-head">スタンプ設定</div>
+    <div class="panel-body">
+      <div class="section">
+        <span class="lbl">スタンプ種別</span>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;" id="stampTypeGrid">
+          <div class="stype-btn active" data-stype="stamp" data-w="370" data-h="320" onclick="setStampType(this)">
+            <span class="ja">スタンプ</span><span class="en">370×320</span>
+          </div>
+          <div class="stype-btn" data-stype="main" data-w="240" data-h="240" onclick="setStampType(this)">
+            <span class="ja">メイン画像</span><span class="en">240×240</span>
+          </div>
+          <div class="stype-btn" data-stype="tab" data-w="96" data-h="74" onclick="setStampType(this)">
+            <span class="ja">タブ画像</span><span class="en">96×74</span>
+          </div>
+        </div>
+      </div>
+      <div class="section" id="countSection">
+        <span class="lbl">個数</span>
+        <div style="display:flex;gap:6px;" id="countGrid">
+          <button class="count-btn" data-count="8" onclick="setCount(this)">8</button>
+          <button class="count-btn" data-count="16" onclick="setCount(this)">16</button>
+          <button class="count-btn" data-count="24" onclick="setCount(this)">24</button>
+          <button class="count-btn active" data-count="32" onclick="setCount(this)">32</button>
+          <button class="count-btn" data-count="40" onclick="setCount(this)">40</button>
+        </div>
+      </div>
+      <div class="section">
+        <div class="mode-row">
+          <button class="mode-btn active" id="modeText" onclick="setMode('text')">✍️ テキストあり</button>
+          <button class="mode-btn" id="modeNoText" onclick="setMode('notext')">🎨 テキストなし</button>
+        </div>
+      </div>
+      <div id="textModeArea">
+        <div class="tab-row">
+          <button class="tab active" id="tab40" onclick="switchTab('40')">厳選セリフ</button>
+          <button class="tab" id="tabCustom" onclick="switchTab('custom')">カスタム入力</button>
+        </div>
+        <div id="tabArea40">
+          <!-- セリフ選択コントロール -->
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+            <button onclick="selectAllSerifs()" style="padding:4px 10px;background:var(--ink);color:var(--paper);border:none;font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;border-radius:0;">全選択</button>
+            <button onclick="clearAllSerifs()" style="padding:4px 10px;background:none;border:1px solid var(--border2);font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;color:var(--muted);border-radius:0;">全解除</button>
+            <button onclick="selectByCount()" style="padding:4px 10px;background:var(--vermillion);color:#fff;border:none;font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;border-radius:0;" id="selectCountBtn">上から<span id="selectCountLabel">32</span>個選択</button>
+            <button onclick="refreshSerifs()" style="padding:4px 10px;background:none;border:1px solid var(--border2);font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;color:var(--muted);border-radius:0;margin-left:auto;">↺ 入替</button>
+          </div>
+          <!-- カテゴリ別セリフ一覧（チェック式） -->
+          <div id="serifCheckList"></div>
+          <!-- 選択数表示 -->
+          <div id="serifSelCount" style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-top:6px;border-left:3px solid var(--vermillion);padding-left:8px;"></div>
+        </div>
+        <div id="tabAreaCustom" style="display:none">
+          <span class="lbl">追加セリフ（最大48個）</span>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="customInput" placeholder="例：草、それな、無理すぎ…" style="flex:1">
+            <button onclick="addCustomText(document.getElementById('customInput').value.trim());document.getElementById('customInput').value='';" style="padding:10px 14px;background:var(--ink);color:var(--paper);border:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;border-radius:0;transition:background .15s;" onmouseover="this.style.background='var(--vermillion)'" onmouseout="this.style.background='var(--ink)'">追加</button>
+          </div>
+          <div class="custom-tags" id="customTags"></div>
+        </div>
+      </div>
+      <!-- 生成対象セリフ一覧 -->
+      <div id="selectedSerifSummary" style="display:none;margin-bottom:12px;padding:10px 14px;background:var(--paper);border:1.5px solid var(--border);border-left:3px solid var(--vermillion);">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">生成対象セリフ <span id="selectedSerifCount" style="color:var(--vermillion);font-size:12px;font-weight:700;"></span>個</div>
+        <div id="selectedSerifList" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+      </div>
+      <button class="gen-btn" onclick="generateAll()">プロンプトを一括生成</button>
+      <button onclick="resetAll()" style="width:100%;padding:8px;background:none;border:1px solid var(--border2);color:var(--muted);font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;border-radius:0;margin-top:6px;transition:all .15s;" onmouseover="this.style.borderColor='var(--vermillion)';this.style.color='var(--vermillion)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--muted)'">↺ 全体をリセット</button>
+    </div>
+  </div>
+
+  <div class="right-col">
+    <div id="outputArea">
+      <div class="empty-state">
+        <div class="empty-icon">🏭</div>
+        <div class="empty-rule"></div>
+        <h2>待機中</h2>
+        <p>左のパネルでキャラクターを設定し<br>「プロンプトを一括生成」を押してください<br><br>40個分のプロンプトが一瞬で生成されます</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="copyModal">
+  <div class="modal-box">
+    <div class="modal-title" id="modalLabel">プロンプト</div>
+    <div class="modal-hint">全選択済み — Ctrl+C（Mac: ⌘C）でコピー、または下のボタンを押してください</div>
+    <textarea id="modalText" readonly rows="9"></textarea>
+    <div class="modal-btns">
+      <button id="modalCopyBtn" onclick="tryCopy()">📋 コピーする</button>
+      <button class="modal-close-btn" onclick="closeModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="loading-overlay" id="loading">
+  <div class="loading-mark">⏳</div>
+  <div class="loading-rule"></div>
+  <div class="loading-text">作成中</div>
+</div>
+
+<script>
+const FULL_40=[
+  {text:"おはよう！",cat:"daily",emoji:"🌅",label:"おはよう",pose:"stretching arms wide open with a big bright smile, eyes sparkling, sunrise glow"},
+  {text:"おやすみ",cat:"daily",emoji:"🌙",label:"おやすみ",pose:"eyes drooping sleepy, holding a pillow, yawning with tiny sleepy smile, ZZZ floating"},
+  {text:"いってきます",cat:"daily",emoji:"👋",label:"いってきます",pose:"waving one hand cheerfully while looking back, backpack on, big smile"},
+  {text:"ただいま",cat:"daily",emoji:"🏠",label:"ただいま",pose:"bursting through a door with a relieved happy expression, arms slightly open"},
+  {text:"ありがとう！",cat:"daily",emoji:"💛",label:"ありがとう",pose:"both hands pressed together in a grateful bow, eyes closed with warm smile, hearts floating"},
+  {text:"よろしく！",cat:"daily",emoji:"🤝",label:"よろしく",pose:"extending one hand forward for a handshake, confident smile, leaning slightly forward"},
+  {text:"了解！",cat:"daily",emoji:"👍",label:"了解",pose:"giving a big thumbs up with a wink, confident smirk, energetic stance"},
+  {text:"いいね！",cat:"daily",emoji:"✨",label:"いいね",pose:"double thumbs up with sparkling eyes, leaning forward enthusiastically, sparkles around"},
+  {text:"嬉しい〜",cat:"emotion",emoji:"😊",label:"嬉しい",pose:"jumping for joy with both fists raised, huge beaming smile, stars and hearts bursting around"},
+  {text:"悲しい…",cat:"emotion",emoji:"😢",label:"悲しい",pose:"hugging knees while sitting curled up, big teardrop falling, drooping ears and tail"},
+  {text:"疲れた〜",cat:"emotion",emoji:"😴",label:"疲れた",pose:"slumped forward completely exhausted, sweat drops, wavy tired lines, eyes half closed"},
+  {text:"びっくり！",cat:"emotion",emoji:"😲",label:"びっくり",pose:"leaping backwards in shock, arms flailing, eyes and mouth wide open, exclamation marks"},
+  {text:"怒ってる",cat:"emotion",emoji:"😤",label:"怒り",pose:"puffed up cheeks, fists clenched at sides, steam from head, fierce squinting eyes, shaking"},
+  {text:"恥ずかしい",cat:"emotion",emoji:"😳",label:"恥ずかし",pose:"covering face with both hands, peeking through fingers, bright red blushing cheeks"},
+  {text:"ドキドキ♡",cat:"emotion",emoji:"💓",label:"ドキドキ",pose:"hands clasped over heart, eyes wide and sparkling, blushing cheeks, pink hearts pulsing"},
+  {text:"最高！",cat:"emotion",emoji:"🎉",label:"最高",pose:"arms raised triumphantly overhead, huge grin, confetti and streamers exploding around"},
+  {text:"笑いすぎ",cat:"reaction",emoji:"😂",label:"爆笑",pose:"doubled over laughing uncontrollably, holding belly, tears streaming from eyes, mouth wide"},
+  {text:"わかる〜",cat:"reaction",emoji:"🙌",label:"共感",pose:"both hands raised and nodding vigorously in strong agreement, empathetic wide eyes"},
+  {text:"それな！",cat:"reaction",emoji:"💯",label:"それな",pose:"pointing finger gun forward with a knowing wink, confident cool lean"},
+  {text:"マジか",cat:"reaction",emoji:"😯",label:"マジか",pose:"jaw dropped wide open, eyes bulging, leaning forward in disbelief, question marks floating"},
+  {text:"ありえん",cat:"reaction",emoji:"🤯",label:"ありえん",pose:"head exploding with shock, arms thrown wide, eyes spinning, lightning bolts around"},
+  {text:"最悪…",cat:"reaction",emoji:"😩",label:"最悪",pose:"completely face-palming with one hand, shoulders slumped in despair, dark cloud overhead"},
+  {text:"頑張って！",cat:"reaction",emoji:"🔥",label:"応援",pose:"pumping fist forward in a cheer, leaning forward energetically, flames and sparks around"},
+  {text:"お疲れ様",cat:"reaction",emoji:"🍵",label:"お疲れ",pose:"gently offering a steaming cup of tea with both hands, soft warm smile, gentle bow"},
+  {text:"お願い🙏",cat:"work",emoji:"🙏",label:"お願い",pose:"pressing palms together tightly in a desperate plea, puppy eyes, sparkly tears forming"},
+  {text:"確認します",cat:"work",emoji:"🔍",label:"確認",pose:"holding a magnifying glass up to one eye, focused detective expression, leaning in"},
+  {text:"後で連絡",cat:"work",emoji:"📱",label:"後連絡",pose:"holding up a phone and gesturing with one finger as if to say wait, reassuring smile"},
+  {text:"急いで！",cat:"work",emoji:"⏰",label:"急いで",pose:"sprinting at full speed with arms pumping, speed lines around, urgent wide eyes, clock"},
+  {text:"ちょっと待って",cat:"work",emoji:"✋",label:"待って",pose:"one palm held up firmly as a stop gesture, serious focused expression, leaning forward"},
+  {text:"おめでとう🎊",cat:"work",emoji:"🎊",label:"祝い",pose:"pulling a party popper overhead, showered in confetti, huge celebrating smile"},
+  {text:"腹減った",cat:"fun",emoji:"🍜",label:"腹減り",pose:"rubbing stomach with a desperate hungry look, eyes locked on imaginary food, drooling"},
+  {text:"眠い〜",cat:"fun",emoji:"😪",label:"眠い",pose:"eyes barely open, head drooping to one side, sleep bubbles rising, stumbling sleepily"},
+  {text:"無理すぎ",cat:"fun",emoji:"😵",label:"無理",pose:"completely collapsed flat on ground in defeat, arms spread wide, spiral eyes, white flag"},
+  {text:"草",cat:"fun",emoji:"😆",label:"草",pose:"laughing so hard rolling on the floor, kicking feet in the air, tears of laughter"},
+  {text:"てへぺろ",cat:"fun",emoji:"😜",label:"てへぺろ",pose:"sticking tongue out with one eye winking, scratching head cheekily, shy shoulder shrug"},
+  {text:"ほっこり",cat:"fun",emoji:"🫶",label:"ほっこり",pose:"sitting wrapped in a cozy blanket with warm mug, soft glowing smile, gentle heart hands"},
+  {text:"投げやり",cat:"fun",emoji:"🤷",label:"投げやり",pose:"both hands raised in a big exaggerated shrug, eyes half closed, completely given up expression"},
+  {text:"また明日",cat:"daily",emoji:"👋",label:"また明日",pose:"waving goodbye over shoulder while walking away, glancing back with friendly smile"},
+  {text:"大好き♡",cat:"emotion",emoji:"❤️",label:"大好き",pose:"hugging self tightly with a blissful smile, surrounded by big red hearts, rosy cheeks"},
+  {text:"ありがとね",cat:"daily",emoji:"🌸",label:"感謝",pose:"gentle bow with hands clasped, soft shy smile, cherry blossoms floating softly around"},
+];
+const CAT_LABELS={daily:"日常",emotion:"感情",reaction:"リアクション",work:"仕事",fun:"ユーモア"};
+let currentMode='text',currentTab='40',selectedStyle="cute kawaii anime illustration style";
+let customTexts=[];
+try{const _s=localStorage.getItem('customTexts');if(_s)customTexts=JSON.parse(_s);}catch(e){}
+let selectedSerifs=new Set();
+let stampType={type:'stamp',w:370,h:320};
+let stampCount=32;
+let extraSerifs=[];
+let serifPageIndex=0;
+let aiSerifs=null; // initPreviewTags時にTREND_SERIFSで初期化
+const catEmoji={daily:'👋',emotion:'😊',reaction:'💯',work:'📱',fun:'😆'};
+
+// ── 画像アップロード & AI分析 ──
+
+
+
+function setStampType(el){
+  document.querySelectorAll('#stampTypeGrid .stype-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  stampType={type:el.dataset.stype,w:+el.dataset.w,h:+el.dataset.h};
+  const cs=document.getElementById('countSection');
+  if(stampType.type==='main'||stampType.type==='tab'){
+    cs.style.opacity='0.4';cs.style.pointerEvents='none';stampCount=1;
+    // 1個だけに絞る
+    const first=[...(aiSerifs||TREND_SERIFS)].find(s=>selectedSerifs.has(s.text));
+    selectedSerifs=new Set(first?[first.text]:[]);
+  }else{cs.style.opacity='';cs.style.pointerEvents='';}
+  renderSerifCheckList();
+}
+
+function setCount(el){
+  document.querySelectorAll('.count-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  stampCount=+el.dataset.count;
+  const lbl=document.getElementById('selectCountLabel');
+  if(lbl)lbl.textContent=stampCount;
+  // 個数が変わったら超過分を削除
+  const source=aiSerifs||TREND_SERIFS;
+  const order=source.map(s=>s.text);
+  const selected=[...selectedSerifs].sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+  if(selected.length>stampCount){
+    selectedSerifs=new Set(selected.slice(0,stampCount));
+  }
+  renderSerifCheckList();
+}
+
+// セリフストック160件（4ページ×40件）
+const SERIF_POOL = [
+  // === PAGE 0: トレンド ===
+  {text:"それな",        cat:"reaction",emoji:"💯",label:"それな",       pose:"finger guns pointing forward with knowing cool nod, smug confident expression"},
+  {text:"わかりみ",      cat:"reaction",emoji:"🙌",label:"わかりみ",     pose:"both hands raised in strong agreement, empathetic wide eyes"},
+  {text:"エモい",        cat:"emotion", emoji:"🥺",label:"エモい",       pose:"clutching chest dramatically, shimmering teary eyes, deeply emotional expression"},
+  {text:"尊い…",        cat:"emotion", emoji:"😭",label:"尊い",         pose:"falling backwards overwhelmed, stars spinning around head, hands clasped to cheeks"},
+  {text:"草",            cat:"fun",     emoji:"😂",label:"草",           pose:"laughing so hard rolling on floor, tears streaming"},
+  {text:"りょ",          cat:"daily",   emoji:"👍",label:"りょ",         pose:"casual thumbs up, relaxed confident expression"},
+  {text:"ガチ？",        cat:"reaction",emoji:"😯",label:"ガチ？",       pose:"jaw dropped, leaning forward in disbelief, wide eyes"},
+  {text:"てぇてぇ",      cat:"emotion", emoji:"🫶",label:"てぇてぇ",     pose:"both hands forming heart shape, rosy blush, eyes sparkling with pure love"},
+  {text:"しんどい",      cat:"emotion", emoji:"😩",label:"しんどい",     pose:"slumped flat, arms spread, completely exhausted"},
+  {text:"まじか",        cat:"reaction",emoji:"🤯",label:"まじか",       pose:"head exploding shock, arms thrown wide, lightning bolts"},
+  {text:"ぴえん",        cat:"emotion", emoji:"🥺",label:"ぴえん",       pose:"quivering bottom lip, enormous teardrop eyes, trembling, on the verge of tears"},
+  {text:"お疲れ様です",  cat:"work",    emoji:"🍵",label:"お疲れ",       pose:"offering steaming cup with both hands, gentle warm bow"},
+  {text:"よろしく！",    cat:"daily",   emoji:"🤝",label:"よろしく",     pose:"extending hand for handshake, bright confident smile"},
+  {text:"ありがと♡",    cat:"daily",   emoji:"💛",label:"ありがと",     pose:"both palms together grateful bow, hearts floating around"},
+  {text:"いってらっしゃい",cat:"daily", emoji:"👋",label:"いってら",     pose:"waving both hands cheerfully, warm bright smile"},
+  {text:"おかえり♪",    cat:"daily",   emoji:"🏠",label:"おかえり",     pose:"arms open wide welcoming, joyful bouncing expression"},
+  {text:"了解です！",    cat:"work",    emoji:"✅",label:"了解",         pose:"crisp thumbs up with professional nod, energetic stance"},
+  {text:"確認します",    cat:"work",    emoji:"🔍",label:"確認",         pose:"magnifying glass to eye, focused detective lean-in"},
+  {text:"後で連絡します",cat:"work",    emoji:"📱",label:"後で連絡",     pose:"holding phone up gesturing wait, reassuring smile"},
+  {text:"おめでとう！",  cat:"work",    emoji:"🎊",label:"おめでとう",   pose:"party popper overhead, showered in confetti, huge grin"},
+  {text:"頑張れ！",      cat:"reaction",emoji:"🔥",label:"頑張れ",       pose:"pumping both fists forward in cheer, flames bursting around"},
+  {text:"無理ぽ",        cat:"fun",     emoji:"😵",label:"無理ぽ",       pose:"collapsed flat with spiral eyes, white flag raised"},
+  {text:"腹ペコ",        cat:"fun",     emoji:"🍜",label:"腹ペコ",       pose:"rubbing stomach desperately, drooling, starving expression"},
+  {text:"眠い…",        cat:"fun",     emoji:"😪",label:"眠い",         pose:"head drooping to side, sleep bubbles, stumbling sleepily"},
+  {text:"テンション上がる",cat:"emotion",emoji:"🎉",label:"テンション",  pose:"arms raised jumping for joy, stars exploding around"},
+  {text:"沼った",        cat:"emotion", emoji:"😍",label:"沼った",       pose:"heart-shaped spiral eyes, floating dreamily, completely enchanted"},
+  {text:"推しが尊い",    cat:"emotion", emoji:"💖",label:"推し尊い",     pose:"both hands pressed to cheeks, spinning with joy, heart eyes, overwhelmed"},
+  {text:"秒で行く",      cat:"reaction",emoji:"⚡",label:"秒で行く",     pose:"sprinting at lightning speed, speed lines, determined face"},
+  {text:"ちょっと待って",cat:"work",    emoji:"✋",label:"待って",       pose:"palm held up firmly stop gesture, serious leaning forward"},
+  {text:"ありえんくて草",cat:"fun",     emoji:"😆",label:"ありえん草",   pose:"doubled over laughing disbelief, tears streaming, rolling"},
+  {text:"ぬくぬく",      cat:"fun",     emoji:"🫶",label:"ぬくぬく",     pose:"wrapped in cozy blanket with mug, soft warm glowing smile"},
+  {text:"てへぺろ",      cat:"fun",     emoji:"😜",label:"てへぺろ",     pose:"tongue out winking, scratching head, cheeky shy shrug"},
+  {text:"ドンマイ",      cat:"reaction",emoji:"💪",label:"ドンマイ",     pose:"reassuring pat gesture, warm encouraging smile, thumbs up"},
+  {text:"最高かよ",      cat:"emotion", emoji:"🌟",label:"最高かよ",     pose:"arms triumphantly overhead, tears of joy, huge beaming grin"},
+  {text:"泣いてる",      cat:"emotion", emoji:"😭",label:"泣いてる",     pose:"sobbing dramatically, rivers of tears, hands covering face"},
+  {text:"むっちゃ嬉しい",cat:"emotion", emoji:"😊",label:"むっちゃ嬉しい",pose:"jumping with both fists raised, stars and hearts bursting"},
+  {text:"おやすみ〜",    cat:"daily",   emoji:"🌙",label:"おやすみ",     pose:"yawning big, holding pillow, eyes drooping, ZZZ floating"},
+  {text:"おはよ",        cat:"daily",   emoji:"🌅",label:"おはよ",       pose:"stretching arms wide, fresh bright smile, sunrise energy"},
+  {text:"また明日ね",    cat:"daily",   emoji:"👋",label:"また明日",     pose:"waving over shoulder walking away, glancing back smiling"},
+  {text:"投げやり",      cat:"fun",     emoji:"🤷",label:"投げやり",     pose:"exaggerated shrug both hands up, half-closed eyes, given up"},
+  // === PAGE 1: 日常・ていねい ===
+  {text:"おはようございます",cat:"daily",emoji:"🌅",label:"おはようございます",pose:"formal polite morning bow, bright professional smile"},
+  {text:"こんにちは！",  cat:"daily",   emoji:"👋",label:"こんにちは",   pose:"cheerful wave, warm friendly daytime smile"},
+  {text:"こんばんは",    cat:"daily",   emoji:"🌙",label:"こんばんは",   pose:"gentle evening wave, soft relaxed smile, calm night vibe"},
+  {text:"いただきます",  cat:"daily",   emoji:"🍚",label:"いただきます", pose:"hands pressed together before meal, happy hungry anticipation"},
+  {text:"ごちそうさま",  cat:"daily",   emoji:"😋",label:"ごちそうさま", pose:"satisfied stomach rub, eyes closed happy, meal complete"},
+  {text:"承知しました",  cat:"work",    emoji:"✅",label:"承知しました", pose:"firm professional nod, crisp acknowledgment, reliable stance"},
+  {text:"かしこまりました",cat:"work",  emoji:"🎩",label:"かしこまり",   pose:"deep respectful bow, formal polite expression"},
+  {text:"よろしくお願いします",cat:"work",emoji:"🙏",label:"よろしくお願い",pose:"deep sincere bow, both hands pressed together, earnest request"},
+  {text:"ありがとうございます",cat:"daily",emoji:"🙇",label:"ありがとうございます",pose:"deep grateful bow, warm appreciative smile"},
+  {text:"お世話になります",cat:"work",  emoji:"💼",label:"お世話になります",pose:"formal professional bow, composed polite expression"},
+  {text:"失礼します",    cat:"work",    emoji:"👔",label:"失礼します",   pose:"polite bow while leaving, refined apologetic expression"},
+  {text:"検討します",    cat:"work",    emoji:"🤔",label:"検討します",   pose:"chin in hand thinking pose, serious careful consideration"},
+  {text:"対応します",    cat:"work",    emoji:"💪",label:"対応します",   pose:"sleeves rolled up ready, determined reliable confident stance"},
+  {text:"ご確認ください",cat:"work",    emoji:"📋",label:"ご確認ください",pose:"presenting clipboard helpfully, pointing with friendly smile"},
+  {text:"提案があります",cat:"work",    emoji:"💡",label:"提案があります",pose:"raised finger lightbulb moment, bright idea excited expression"},
+  {text:"少々お待ちください",cat:"work",emoji:"⏳",label:"少々お待ち",   pose:"palm raised gently, apologetic patient smile"},
+  {text:"お気をつけて",  cat:"daily",   emoji:"🍀",label:"お気をつけて", pose:"caring wave goodbye, gentle warm expression, safe travels"},
+  {text:"すみません🙏",  cat:"daily",   emoji:"😅",label:"すみません",   pose:"sheepish scratch of head, apologetic blush, nervous smile"},
+  {text:"申し訳ありません",cat:"work",  emoji:"🙇",label:"申し訳ありません",pose:"deep bow apologizing, genuinely remorseful expression"},
+  {text:"もうすぐ着きます",cat:"daily", emoji:"🏃",label:"もうすぐ着きます",pose:"running toward destination, eager nearly-there expression"},
+  {text:"今すぐ行きます",cat:"daily",   emoji:"⚡",label:"今すぐ行きます",pose:"dashing off at full speed, urgent determined face"},
+  {text:"後ほどご連絡します",cat:"work",emoji:"📱",label:"後ほどご連絡", pose:"phone held up, reassuring professional smile"},
+  {text:"お待ちしています",cat:"work",  emoji:"😊",label:"お待ちしています",pose:"waiting patiently, warm welcoming expression, open arms"},
+  {text:"急ぎでお願いします",cat:"work",emoji:"🔥",label:"急ぎでお願い", pose:"running urgently with papers, stressed but determined"},
+  {text:"報告します",    cat:"work",    emoji:"📊",label:"報告します",   pose:"presenting report standing tall, professional delivery"},
+  {text:"修正しました",  cat:"work",    emoji:"🔧",label:"修正しました", pose:"wrench down done gesture, satisfied accomplished expression"},
+  {text:"いつでも大丈夫",cat:"daily",   emoji:"😄",label:"いつでも大丈夫",pose:"both thumbs up, easygoing relaxed totally-fine expression"},
+  {text:"どういたしまして",cat:"daily", emoji:"😊",label:"どういたしまして",pose:"gentle dismissing wave, warm humble you're-welcome smile"},
+  {text:"おつかれさま！",cat:"daily",   emoji:"🍺",label:"おつかれさま", pose:"raising glass in toast, warm collegial end-of-day cheer"},
+  {text:"また来週！",    cat:"daily",   emoji:"📅",label:"また来週",     pose:"enthusiastic see-you wave, cheerful weekly anticipation"},
+  {text:"お先に！",      cat:"work",    emoji:"🚀",label:"お先に",       pose:"heading out first gesture, energetic leaving wave"},
+  {text:"行ってきます！",cat:"daily",   emoji:"🎒",label:"行ってきます", pose:"shouldering bag energetically, excited departure expression"},
+  {text:"ただいま〜",    cat:"daily",   emoji:"🏠",label:"ただいま",     pose:"coming through door relieved, dropping bag with sigh"},
+  {text:"おかえり！",    cat:"daily",   emoji:"🌟",label:"おかえり",     pose:"arms wide open welcoming home, joyful greeting expression"},
+  {text:"気をつけてね",  cat:"daily",   emoji:"🍀",label:"気をつけてね", pose:"gentle patting gesture, caring concerned expression"},
+  {text:"また明日！",    cat:"daily",   emoji:"☀️",label:"また明日",     pose:"enthusiastic see-you-tomorrow wave, bright anticipation smile"},
+  {text:"ご連絡ください",cat:"work",    emoji:"📞",label:"ご連絡ください",pose:"hand to ear phone gesture, friendly inviting warm smile"},
+  {text:"了解いたしました",cat:"work",  emoji:"📝",label:"了解いたしました",pose:"writing note with professional nod, acknowledgment stance"},
+  {text:"後で話しましょう",cat:"work",  emoji:"💬",label:"後で話しましょう",pose:"pointing to clock then waving, friendly postpone gesture"},
+  {text:"ありがとうございました",cat:"daily",emoji:"💛",label:"ありがとうございました",pose:"deepest grateful bow, eyes closed, heartfelt appreciation"},
+  // === PAGE 2: 友達・カジュアル ===
+  {text:"ウケるんだけど",cat:"fun",     emoji:"😂",label:"ウケるんだけど",pose:"doubled over laughing uncontrollably, hand on knee, tears flying"},
+  {text:"やばすぎる！",  cat:"fun",     emoji:"🤯",label:"やばすぎる",   pose:"head exploding, eyes wide in disbelief, arms thrown outward"},
+  {text:"えぐくない？",  cat:"reaction",emoji:"😱",label:"えぐくない",   pose:"hands on cheeks shocked, leaning backward wide-eyed"},
+  {text:"神すぎる！",    cat:"reaction",emoji:"🙏",label:"神すぎる",     pose:"worshipping pose, starry eyes, hands clasped upward"},
+  {text:"天才やん！",    cat:"reaction",emoji:"💡",label:"天才やん",     pose:"pointing in amazement with respect, wide impressed eyes"},
+  {text:"最強すぎる",    cat:"emotion", emoji:"💪",label:"最強すぎる",   pose:"flexing both arms triumphantly, fierce champion grin"},
+  {text:"優勝した",      cat:"emotion", emoji:"🏆",label:"優勝した",     pose:"holding trophy overhead, champion victory pose"},
+  {text:"一緒に行こ！",  cat:"daily",   emoji:"🤝",label:"一緒に行こ",   pose:"pulling arm excitedly, bright urging smile"},
+  {text:"呼んでよ！",    cat:"reaction",emoji:"😤",label:"呼んでよ",     pose:"indignant arms crossed, pouty-cute left-out face"},
+  {text:"暇なんだけど",  cat:"fun",     emoji:"😑",label:"暇なんだけど", pose:"lying flat bored, staring at ceiling, deadpan expression"},
+  {text:"何食べよ？",    cat:"fun",     emoji:"🤔",label:"何食べよ",     pose:"tapping chin pondering food, excited appetite anticipation"},
+  {text:"ご飯行こ！",    cat:"daily",   emoji:"🍱",label:"ご飯行こ",     pose:"grabbing arm excitedly to eat, glowing happy hungry face"},
+  {text:"飲みに行こ！",  cat:"fun",     emoji:"🍺",label:"飲みに行こ",   pose:"raising imaginary glass, grinning party-invitation energy"},
+  {text:"カラオケ行こ！",cat:"fun",     emoji:"🎤",label:"カラオケ行こ", pose:"mic pose singing dramatically, star energy bursting"},
+  {text:"どこにいる？",  cat:"daily",   emoji:"📍",label:"どこにいる",   pose:"looking around searching, curious tilted-head expression"},
+  {text:"もう行くね",    cat:"daily",   emoji:"👋",label:"もう行くね",   pose:"grabbing coat ready to leave, apologetic friendly wave"},
+  {text:"遅れてる！",    cat:"daily",   emoji:"😰",label:"遅れてる",     pose:"running while sweating, frantic stressed expression"},
+  {text:"ごめん遅刻",    cat:"daily",   emoji:"😅",label:"ごめん遅刻",   pose:"bowing apologetically while running, embarrassed blush"},
+  {text:"先に行ってて",  cat:"daily",   emoji:"🏃",label:"先に行ってて", pose:"waving go-ahead gesture, lagging-behind rushing"},
+  {text:"まあいいか",    cat:"fun",     emoji:"😌",label:"まあいいか",   pose:"shrugging one shoulder, relaxed let-it-go acceptance"},
+  {text:"なんでもいい",  cat:"fun",     emoji:"🤷",label:"なんでもいい", pose:"both hands up, truly unbothered I-don't-mind expression"},
+  {text:"大丈夫だよ！",  cat:"reaction",emoji:"😊",label:"大丈夫だよ",   pose:"two thumbs up, reassuring warm comforting smile"},
+  {text:"心配しないで",  cat:"reaction",emoji:"🫂",label:"心配しないで", pose:"comforting hug gesture, caring protective warm face"},
+  {text:"いつもありがとう",cat:"daily", emoji:"💛",label:"いつもありがとう",pose:"hands over heart, deeply grateful glowing warm smile"},
+  {text:"大好きだよ！",  cat:"emotion", emoji:"❤️",label:"大好きだよ",   pose:"heart hands gesturing to viewer, glowing love overflowing"},
+  {text:"また連絡して",  cat:"daily",   emoji:"📱",label:"また連絡して", pose:"phone hand gesture smiling, friendly see-you-later"},
+  {text:"寂しいよ",      cat:"emotion", emoji:"😢",label:"寂しいよ",     pose:"hugging self alone, drooping sad missing-you expression"},
+  {text:"会いたいな",    cat:"emotion", emoji:"🥺",label:"会いたいな",   pose:"reaching hand forward longingly, teary sincere eyes"},
+  {text:"元気出して！",  cat:"reaction",emoji:"🌈",label:"元気出して",   pose:"cheerleader pose, rainbow energy bursting out"},
+  {text:"任せて！",      cat:"reaction",emoji:"💪",label:"任せて",       pose:"confident pointing at self, I've-got-this stance"},
+  {text:"絶対大丈夫",    cat:"reaction",emoji:"👍",label:"絶対大丈夫",   pose:"firm double thumbs up, rock-solid confidence"},
+  {text:"頑張ろう！",    cat:"reaction",emoji:"🔥",label:"頑張ろう",     pose:"mutual fists raised cheer, let's-do-this fire energy"},
+  {text:"なんかいい感じ",cat:"emotion", emoji:"✨",label:"なんかいい感じ",pose:"floating pleasantly, vague sparkly happy aura"},
+  {text:"やる気出てきた",cat:"emotion", emoji:"💥",label:"やる気出てきた",pose:"rolling up sleeves, fired-up determined ready-to-go face"},
+  {text:"今日も頑張る",  cat:"daily",   emoji:"☀️",label:"今日も頑張る", pose:"fist raised with morning sun, fresh determined daily energy"},
+  {text:"今日は終わり！",cat:"daily",   emoji:"🎊",label:"今日は終わり", pose:"throwing both hands up done, relieved celebration"},
+  {text:"友達でいてね",  cat:"emotion", emoji:"🫶",label:"友達でいてね", pose:"pinky promise pose, earnest sincere pleading eyes"},
+  {text:"一緒にいるよ",  cat:"emotion", emoji:"🤝",label:"一緒にいるよ", pose:"side-by-side supportive pose, comforting loyal expression"},
+  {text:"ありがとね",    cat:"daily",   emoji:"🌸",label:"ありがとね",   pose:"gentle bow with soft shy smile, cherry blossoms floating"},
+  {text:"大好きよ",      cat:"emotion", emoji:"💖",label:"大好きよ",     pose:"hugging self with love, rosy cheeks, sparkles everywhere"},
+  // === PAGE 3: トレンド・ネットスラング ===
+  {text:"ガチ恋した",    cat:"emotion", emoji:"💘",label:"ガチ恋した",   pose:"arrow through heart, love-struck spiral eyes, floating"},
+  {text:"一生これ食べたい",cat:"fun",   emoji:"😋",label:"一生これ食べたい",pose:"holding food reverently like treasure, devoted sparkling eyes"},
+  {text:"完全に沼った",  cat:"emotion", emoji:"😍",label:"完全に沼った", pose:"happily sinking into obsession, spiral eyes, totally gone"},
+  {text:"テンアゲ！",    cat:"emotion", emoji:"🎵",label:"テンアゲ",     pose:"dancing energetically, vibing to music, notes all around"},
+  {text:"情緒がやばい",  cat:"emotion", emoji:"🌊",label:"情緒がやばい", pose:"emotional tidal wave crashing over, overwhelmed"},
+  {text:"頭バグった",    cat:"fun",     emoji:"🤖",label:"頭バグった",   pose:"sparks flying from head, system error face, confused"},
+  {text:"充電0%",       cat:"fun",     emoji:"🔋",label:"充電0%",       pose:"collapsed completely flat, dead battery, lifeless"},
+  {text:"語彙力死んだ",  cat:"reaction",emoji:"💀",label:"語彙力死んだ", pose:"speechless blank stare, empty speech bubble, mind wiped"},
+  {text:"感情追いつかない",cat:"emotion",emoji:"🌀",label:"感情追いつかない",pose:"spinning emotionally overwhelmed, too many feelings"},
+  {text:"泣くしかない",  cat:"emotion", emoji:"😭",label:"泣くしかない", pose:"ugly cry accepting fate, rivers of tears, resigned weeping"},
+  {text:"笑うしかない",  cat:"fun",     emoji:"😂",label:"笑うしかない", pose:"laughing through pain, tears-laughter combo, cope mode"},
+  {text:"寝不足で死ぬ",  cat:"fun",     emoji:"😴",label:"寝不足で死ぬ", pose:"zombie walking, massive dark circles, barely-alive"},
+  {text:"花粉症つらい",  cat:"fun",     emoji:"🤧",label:"花粉症つらい", pose:"giant sneeze, tissue box nearby, suffering cutely"},
+  {text:"暑すぎて死ぬ",  cat:"fun",     emoji:"🥵",label:"暑すぎて死ぬ", pose:"melting dramatically from heat, tongue out, dripping sweat"},
+  {text:"寒すぎて死ぬ",  cat:"fun",     emoji:"🥶",label:"寒すぎて死ぬ", pose:"shivering frozen stiff, chattering teeth, icicles forming"},
+  {text:"体が動かない",  cat:"fun",     emoji:"😵",label:"体が動かない", pose:"flopped over, limbs too heavy, spirit leaving body"},
+  {text:"やる気がない",  cat:"fun",     emoji:"😑",label:"やる気がない", pose:"zero energy slump, flat expression, give-up aura"},
+  {text:"月曜日は無理",  cat:"fun",     emoji:"😫",label:"月曜日は無理", pose:"dramatically rejecting Monday, hiding under covers"},
+  {text:"金曜日最高！",  cat:"fun",     emoji:"🎉",label:"金曜日最高",   pose:"TGIF victory dance, pure weekend joy, freedom activated"},
+  {text:"推しに会いたい",cat:"emotion", emoji:"💖",label:"推しに会いたい",pose:"fan longing pose, hands clasped, hearts overflowing"},
+  {text:"推しが完璧すぎる",cat:"emotion",emoji:"😭",label:"推しが完璧",  pose:"overwhelmed by perfection, happy tears, hands to cheeks"},
+  {text:"課金した",      cat:"fun",     emoji:"💸",label:"課金した",     pose:"money flying away, satisfied-yet-regretful expression"},
+  {text:"全部欲しい！",  cat:"fun",     emoji:"🛒",label:"全部欲しい",   pose:"arms full of items, unstoppable shopping mode"},
+  {text:"財布が泣いてる",cat:"fun",     emoji:"💸",label:"財布が泣いてる",pose:"wallet crying on floor, sympathetic but still shopping"},
+  {text:"ダイエット明日から",cat:"fun", emoji:"🍰",label:"ダイエット明日から",pose:"eating cake guiltlessly, tomorrow-is-another-day expression"},
+  {text:"早起きした！",  cat:"daily",   emoji:"🌅",label:"早起きした",   pose:"shocked at own success, triumphant early-bird victory"},
+  {text:"二度寝した",    cat:"fun",     emoji:"😴",label:"二度寝した",   pose:"returning to pillow with zero regret, sleep won again"},
+  {text:"起きたくない",  cat:"fun",     emoji:"😭",label:"起きたくない", pose:"clinging to blanket desperately, resisting morning"},
+  {text:"もう一回寝る",  cat:"fun",     emoji:"💤",label:"もう一回寝る", pose:"tucking self back in bed, absolutely no hesitation"},
+  {text:"運動した！",    cat:"daily",   emoji:"💪",label:"運動した",     pose:"triumphant fist pump post-workout, proud athletic expression"},
+  {text:"筋肉痛つらい",  cat:"fun",     emoji:"😭",label:"筋肉痛つらい", pose:"walking stiffly post-workout, dramatic suffering"},
+  {text:"お腹すいた〜",  cat:"fun",     emoji:"🍜",label:"お腹すいた",   pose:"clutching stomach, teary hungry eyes, drooling"},
+  {text:"満腹〜",        cat:"fun",     emoji:"😋",label:"満腹",         pose:"round satisfied belly, utterly content after huge meal"},
+  {text:"美味しすぎる",  cat:"emotion", emoji:"🤤",label:"美味しすぎる", pose:"eyes rolling back in ecstasy, hands clasped divine taste"},
+  {text:"休みたい",      cat:"fun",     emoji:"🌴",label:"休みたい",     pose:"dreaming of hammock island, drifting off vacation mode"},
+  {text:"旅行行きたい",  cat:"daily",   emoji:"✈️",label:"旅行行きたい", pose:"arms open flying pose, wanderlust dreamy expression"},
+  {text:"最高の週末",    cat:"emotion", emoji:"🌈",label:"最高の週末",   pose:"arms raised celebrating perfect weekend, glowing happiness"},
+  {text:"ゆっくりしてる",cat:"daily",   emoji:"😌",label:"ゆっくりしてる",pose:"lounging peacefully, completely relaxed expression"},
+  {text:"なにもしたくない",cat:"fun",   emoji:"🫥",label:"なにもしたくない",pose:"melting into sofa, zero motivation, ultimate relaxation"},
+  {text:"今日も最高",    cat:"emotion", emoji:"✨",label:"今日も最高",   pose:"arms spread wide basking in sunshine, radiant happy glow"},
+];
+const TREND_SERIFS = SERIF_POOL.slice(0, 40);
+
+function refreshSerifs(){
+  serifPageIndex=(serifPageIndex+1)%4;
+  aiSerifs=SERIF_POOL.slice(serifPageIndex*40,(serifPageIndex+1)*40);
+  selectedSerifs=new Set();
+  aiSerifs.slice(0,stampCount).forEach(s=>selectedSerifs.add(s.text));
+  renderSerifCheckList();
+  renderSelectedSummary();
+  const labels=['トレンド','日常・ていねい','友達・カジュアル','トレンド・スラング'];
+  showToast('↺ '+labels[serifPageIndex]+' に入替えました');
+}
+
+function renderSerifCheckList(){
+  const c=document.getElementById('serifCheckList');
+  if(!c)return;
+  c.innerHTML='';
+  const source=aiSerifs||TREND_SERIFS;
+  const catOrder=['daily','emotion','reaction','work','fun'];
+  const catNames={daily:'日常',emotion:'感情',reaction:'リアクション',work:'仕事',fun:'ユーモア'};
+  const maxSel=(stampType.type==='main'||stampType.type==='tab')?1:stampCount;
+
+  catOrder.forEach(cat=>{
+    const items=source.filter(s=>s.cat===cat);
+    if(!items.length)return;
+    const head=document.createElement('div');
+    head.className='serif-cat-head';
+    const lbl=document.createElement('span');
+    lbl.className='serif-cat-head-label';
+    lbl.textContent=catNames[cat]+' ('+items.length+'個)';
+    const btn=document.createElement('button');
+    btn.className='serif-cat-head-btn';
+    btn.textContent=items.every(s=>selectedSerifs.has(s.text))?'解除':'全選択';
+    btn.onclick=()=>{
+      const allSel=items.every(s=>selectedSerifs.has(s.text));
+      if(allSel){
+        items.forEach(s=>selectedSerifs.delete(s.text));
+      }else{
+        items.forEach(s=>{if(selectedSerifs.size<maxSel)selectedSerifs.add(s.text);});
+      }
+      renderSerifCheckList();
+    };
+    head.appendChild(lbl);head.appendChild(btn);
+    c.appendChild(head);
+    const wrap=document.createElement('div');
+    items.forEach(s=>{
+      const isSel=selectedSerifs.has(s.text);
+      const atMax=!isSel&&selectedSerifs.size>=maxSel;
+      const el=document.createElement('div');
+      el.className='serif-check-item'+(isSel?' checked':'');
+      if(atMax){el.style.opacity='0.35';el.title='上限'+maxSel+'個です';}
+      el.innerHTML='<span class="serif-emoji">'+(catEmoji[cat]||'✨')+'</span><span>'+s.text+'</span>';
+      el.onclick=()=>{
+        if(selectedSerifs.has(s.text)){
+          selectedSerifs.delete(s.text);
+        }else{
+          if(selectedSerifs.size>=maxSel){showToast('⚠️ 上限 '+maxSel+'個 に達しています');return;}
+          selectedSerifs.add(s.text);
+        }
+        renderSerifCheckList();
+        renderSelectedSummary();
+      };
+      wrap.appendChild(el);
+    });
+    c.appendChild(wrap);
+  });
+  // 選択数バッジ
+  const selCnt=document.getElementById('serifSelCount');
+  if(selCnt){
+    const n=selectedSerifs.size;
+    const col=n>=maxSel?'#22863a':'var(--vermillion)';
+    selCnt.innerHTML='選択中: <span style="color:'+col+';font-weight:900;font-size:14px;">'+n+'</span> / '+maxSel+' 個';
+  }
+  renderSelectedSummary();
+}
+
+function updateCatBtn(btn,items){
+  const allChecked=items.every(s=>selectedSerifs.has(s._gi));
+  btn.textContent=allChecked?'解除':'全選択';
+}
+
+function renderSelectedSummary(){
+  const source=aiSerifs||TREND_SERIFS;
+  const sel=source.filter(s=>selectedSerifs.has(s.text));
+  const extra=extraSerifs||[];
+  const total=sel.length+extra.length;
+  const sum=document.getElementById('selectedSerifSummary');
+  const list=document.getElementById('selectedSerifList');
+  const cnt=document.getElementById('selectedSerifCount');
+  const selCnt=document.getElementById('serifSelCount');
+  if(cnt)cnt.textContent=total;
+  if(selCnt)selCnt.textContent='選択中: '+sel.length+'個'+(extra.length?' + 追加'+extra.length+'個':'');
+  if(!sum||!list)return;
+  if(total===0){sum.style.display='none';return;}
+  sum.style.display='block';
+  list.innerHTML='';
+  sel.forEach(s=>{
+    const tag=document.createElement('span');
+    tag.className='selected-serif-tag';
+    tag.textContent=(catEmoji[s.cat]||'✨')+' '+s.text;
+    list.appendChild(tag);
+  });
+  extra.forEach(s=>{
+    const tag=document.createElement('span');
+    tag.className='selected-serif-tag';
+    tag.style.borderLeft='3px solid var(--vermillion)';
+    tag.textContent='✚ '+s.text;
+    list.appendChild(tag);
+  });
+}
+
+function selectAllSerifs(){
+  const source=aiSerifs||TREND_SERIFS;
+  const maxSel=(stampType.type==='main'||stampType.type==='tab')?1:stampCount;
+  source.slice(0,maxSel).forEach(s=>selectedSerifs.add(s.text));
+  renderSerifCheckList();
+}
+function clearAllSerifs(){
+  selectedSerifs.clear();
+  renderSerifCheckList();
+}
+function selectByCount(){
+  selectedSerifs.clear();
+  const source=aiSerifs||TREND_SERIFS;
+  const n=(stampType.type==='main'||stampType.type==='tab')?1:stampCount;
+  source.slice(0,n).forEach(s=>selectedSerifs.add(s.text));
+  renderSerifCheckList();
+}
+
+function initPreviewTags(){renderSerifCheckList();}
+
+
+aiSerifs = TREND_SERIFS;
+// デフォルトで全選択（textをキーに）
+aiSerifs.slice(0,stampCount).forEach(s=>selectedSerifs.add(s.text));
+renderSerifCheckList();
+renderCustomTags();
+renderExtraSerifList();
+// 説明文を初期設定
+
+
+document.getElementById('styleCatTabs').addEventListener('click',e=>{
+  const tab=e.target.closest('.style-cat-tab');if(!tab)return;
+  const cat=tab.dataset.cat;
+  document.querySelectorAll('.style-cat-tab').forEach(t=>t.classList.remove('active'));tab.classList.add('active');
+  document.querySelectorAll('.style-cat-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('stylePanel-'+cat).classList.add('active');
+});
+document.addEventListener('click',e=>{
+  const btn=e.target.closest('.style-btn');
+  if(!btn)return;
+  // data-styleを持つビジュアルスタイルボタンのみ処理（スタンプ種別ボタンは除外）
+  if(!btn.dataset.style)return;
+  // スタイルパネル内のボタンだけactiveを切り替える
+  const panel=btn.closest('.style-cat-panel');
+  if(panel) panel.querySelectorAll('.style-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedStyle=btn.dataset.style;
+  const ja=btn.querySelector('.ja')?btn.querySelector('.ja').textContent:btn.textContent;
+  const en=btn.querySelector('.en')?btn.querySelector('.en').textContent:'';
+  document.getElementById('selectedStyleDisplay').textContent='選択中 → '+ja+(en?' ('+en+')':'');
+});
+function setMode(m){currentMode=m;document.getElementById('modeText').classList.toggle('active',m==='text');document.getElementById('modeNoText').classList.toggle('active',m==='notext');document.getElementById('textModeArea').style.display=m==='text'?'':'none';}
+function switchTab(t){
+  currentTab=t;
+  document.getElementById('tab40').classList.toggle('active',t==='40');
+  document.getElementById('tabCustom').classList.toggle('active',t==='custom');
+  document.getElementById('tabArea40').style.display=t==='40'?'':'none';
+  document.getElementById('tabAreaCustom').style.display=t==='custom'?'':'none';
+  // カスタム入力時は個数選択を無効化
+  const cs=document.getElementById('countSection');
+  if(cs && stampType.type==='stamp'){
+    if(t==='custom'){cs.style.opacity='0.35';cs.style.pointerEvents='none';}
+    else{cs.style.opacity='';cs.style.pointerEvents='';}
+  }
+}
+const customInput=document.getElementById('customInput');
+customInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addCustomText(customInput.value.trim());customInput.value='';}});
+function addCustomText(txt){if(!txt||customTexts.length>=48||customTexts.includes(txt))return;customTexts.push(txt);saveCustomTexts();renderCustomTags();}
+function saveCustomTexts(){try{localStorage.setItem('customTexts',JSON.stringify(customTexts));}catch(e){}}
+function renderCustomTags(){const c=document.getElementById('customTags');if(!c)return;c.innerHTML='';customTexts.forEach((t,i)=>{const d=document.createElement('div');d.className='ctag';d.innerHTML=`<span>${t}</span><button onclick="removeCustom(${i})">×</button>`;c.appendChild(d);});}
+function removeCustom(i){customTexts.splice(i,1);saveCustomTexts();renderCustomTags();}
+function resetAll(){if(!confirm('全ての設定をリセットしますか？\n（カスタム入力のセリフは保持されます）'))return;serifPageIndex=0;aiSerifs=SERIF_POOL.slice(0,40);selectedSerifs=new Set();aiSerifs.slice(0,stampCount).forEach(s=>selectedSerifs.add(s.text));selectedStyle='cute kawaii anime illustration style';document.querySelectorAll('.style-btn').forEach(b=>b.classList.remove('active'));const first=document.querySelector('.style-btn[data-style="cute kawaii anime illustration style"]');if(first)first.classList.add('active');document.getElementById('selectedStyleDisplay').textContent='選択中 → アニメスタイル (Anime Style)';document.getElementById('charDesc').value='';renderCustomTags();renderSerifCheckList();renderSelectedSummary();document.getElementById('outputArea').innerHTML='<div class="empty-state"><div class="empty-icon">🏭</div><div class="empty-rule"></div><h2>待機中</h2><p>左のパネルでキャラクターを設定し<br>「プロンプトを一括生成」を押してください<br><br>40個分のプロンプトが一瞬で生成されます</p></div>';showToast('✅ リセット完了');}
+
+// ── 追加セリフ ──
+
+function guessPose(txt){
+  const t=txt;
+  if(/おはよ|朝|起き/.test(t)) return 'stretching arms wide open with a bright smile, sunrise glow';
+  if(/おやす|寝る|夜/.test(t)) return 'eyes drooping sleepy, yawning, holding a pillow, ZZZ floating';
+  if(/ありがと|感謝|サンキュ/.test(t)) return 'both hands pressed together in a grateful bow, hearts floating';
+  if(/よろしく|はじめ/.test(t)) return 'extending one hand for a handshake, confident smile';
+  if(/了解|わかっ|OK|オッケー/.test(t)) return 'big thumbs up with a wink, energetic stance';
+  if(/嬉し|やった|ラッキ|最高|やばい/.test(t)) return 'jumping for joy with both fists raised, stars and hearts bursting around';
+  if(/悲し|泣|かなし/.test(t)) return 'hugging knees curled up, big teardrop falling, drooping expression';
+  if(/疲れ|つかれ|ぐったり/.test(t)) return 'slumped forward exhausted, sweat drops, eyes half closed';
+  if(/びっくり|えっ|うそ/.test(t)) return 'leaping back in shock, arms flailing, eyes and mouth wide open';
+  if(/怒|むかつ|イライラ/.test(t)) return 'puffed cheeks, fists clenched, steam from head, shaking';
+  if(/恥|はずか|てれ/.test(t)) return 'covering face with both hands, peeking through fingers, blushing';
+  if(/ドキ|きゅん|好き/.test(t)) return 'hands clasped over heart, sparkling eyes, blushing, hearts pulsing';
+  if(/笑|わら|草|ウケ/.test(t)) return 'doubled over laughing, holding belly, tears streaming from eyes';
+  if(/わかる|それな|だよね/.test(t)) return 'both hands raised nodding vigorously in strong agreement';
+  if(/マジ|まじ|ほんと/.test(t)) return 'jaw dropped wide open, eyes bulging, leaning forward in disbelief';
+  if(/頑張|がんば|ファイト/.test(t)) return 'pumping fist forward in a cheer, flames and sparks around';
+  if(/お願|たのむ|してくれ/.test(t)) return 'pressing palms together in a desperate plea, puppy eyes, sparkly tears';
+  if(/急い|はやく|もうすぐ/.test(t)) return 'sprinting at full speed, speed lines around, urgent wide eyes';
+  if(/待っ|ちょっと|まって/.test(t)) return 'one palm held up firmly as a stop gesture, serious expression';
+  if(/おめ|祝|やった/.test(t)) return 'pulling a party popper overhead, showered in confetti, huge smile';
+  if(/腹|はら|ご飯|食べ|おなか/.test(t)) return 'rubbing stomach with a desperate hungry look, drooling';
+  if(/眠い|ねむ|あくび/.test(t)) return 'eyes barely open, head drooping, sleep bubbles rising';
+  if(/無理|やだ|いや/.test(t)) return 'collapsed flat on ground in defeat, spiral eyes, white flag';
+  if(/てへ|へへ|えへ/.test(t)) return 'sticking tongue out with one eye winking, scratching head cheekily';
+  if(/ほっこり|ほのぼの|ぬくぬく/.test(t)) return 'sitting in a cozy blanket with warm mug, soft glowing smile';
+  if(/バイバイ|またね|じゃあ|さよなら/.test(t)) return 'waving goodbye over shoulder while walking away, glancing back';
+  if(/大好|だいす|愛して/.test(t)) return 'hugging self tightly with blissful smile, surrounded by big red hearts';
+  return 'expressive cheerful pose matching the emotion of the text, dynamic sticker art';
+}
+
+function saveExtraSerifs(){
+  try{ localStorage.setItem('extraSerifs', JSON.stringify(extraSerifs)); }catch(e){}
+}
+
+function addExtraSerif(){
+  const input=document.getElementById('extraSerifInput');
+  const txt=input.value.trim();
+  if(!txt)return;
+  if(extraSerifs.find(s=>s.text===txt)){input.value='';return;}
+  const pose=guessPose(txt);
+  extraSerifs.push({text:txt,pose:pose,cat:'fun',emoji:'✨',label:txt});
+  input.value='';
+  renderExtraSerifList();
+  saveExtraSerifs();
+}
+
+function renderExtraSerifList(){
+  renderSelectedSummary();
+  const c=document.getElementById('extraSerifList');
+  if(!c)return;
+  c.innerHTML='';
+  if(extraSerifs.length===0){
+    const hint=document.createElement('p');
+    hint.style.cssText='font-size:10px;color:var(--muted);font-family:"IBM Plex Mono",monospace;margin-top:4px;';
+    hint.textContent='入力したセリフはブラウザに保存されます';
+    c.appendChild(hint);
+    return;
+  }
+  extraSerifs.forEach((s,i)=>{
+    const d=document.createElement('div');
+    d.className='ctag';
+    d.title='ポーズ: '+s.pose;
+    d.innerHTML=`<span>${s.text}</span><button onclick="removeExtraSerif(${i})">×</button>`;
+    c.appendChild(d);
+  });
+  // 保存済み件数表示
+  const note=document.createElement('div');
+  note.style.cssText='font-size:9px;color:var(--muted);font-family:"IBM Plex Mono",monospace;margin-top:5px;width:100%;';
+  note.textContent='💾 '+extraSerifs.length+'件保存済み';
+  c.appendChild(note);
+}
+
+function removeExtraSerif(i){
+  extraSerifs.splice(i,1);
+  renderExtraSerifList();
+  saveExtraSerifs();
+}
+
+document.getElementById('extraSerifInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();addExtraSerif();}
+});
+
+function buildPrompt(charDesc,style,textVal,extra,posePart,noText,stype){
+  const poseStr=posePart?posePart:"expressive and emotion-filled pose";
+  // noText=trueのとき、テキストを描画しない指示に切り替える
+  const textStr = noText
+    ? 'Do NOT include any text, letters, or words in the image.'
+    : (textVal ? `The sticker includes bold Japanese text saying "${textVal}" clearly written.` : '');
+  const extraStr=extra?extra.trim():'';
+  const charPart=charDesc&&charDesc.trim()?charDesc.trim():'a cute round fluffy character';
+  const ar = stype ? stype.w + ':' + stype.h : '1:1';
+  const typeHint = stype && stype.type==='tab' ? 'simple icon suitable for a small tab image, ' : stype && stype.type==='main' ? 'main visual sticker image, ' : '';
+  return ('Create a LINE sticker illustration of ' + charPart + '. Style: ' + style + '. Pose/expression: ' + poseStr + '. ' + textStr + ' ' + typeHint + 'The background must be pure solid white (#FFFFFF) with no gradients, no shadows, and no textures — suitable for background removal. The character is centered with clean, sharp edges and no clipping. Aspect ratio ' + ar + ', sticker art quality. ' + extraStr).replace(/\s+/g,' ').trim();
+}
+
+function generateAll(){
+  const charDesc=document.getElementById('charDesc').value;
+  const extra='';
+  const source=aiSerifs||TREND_SERIFS;
+  let textList=[];
+  if(currentMode==='notext'){
+    textList=[
+      {text:null,cat:"emotion",emoji:"😊",label:"笑顔"},{text:null,cat:"emotion",emoji:"😢",label:"泣き"},
+      {text:null,cat:"emotion",emoji:"😤",label:"怒り"},{text:null,cat:"emotion",emoji:"😴",label:"眠い"},
+      {text:null,cat:"reaction",emoji:"👋",label:"バイバイ"},{text:null,cat:"reaction",emoji:"🙏",label:"お願い"},
+      {text:null,cat:"reaction",emoji:"👍",label:"グッド"},{text:null,cat:"emotion",emoji:"😂",label:"爆笑"},
+      {text:null,cat:"fun",emoji:"🎉",label:"お祝い"},{text:null,cat:"daily",emoji:"💤",label:"寝てる"},
+      {text:null,cat:"work",emoji:"💪",label:"ガッツポーズ"},{text:null,cat:"emotion",emoji:"😳",label:"照れ顔"},
+      {text:null,cat:"reaction",emoji:"🤔",label:"悩み"},{text:null,cat:"emotion",emoji:"😍",label:"ときめき"},
+      {text:null,cat:"fun",emoji:"😵",label:"困惑"},{text:null,cat:"daily",emoji:"✨",label:"キラキラ"},
+      {text:null,cat:"emotion",emoji:"😩",label:"がっかり"},{text:null,cat:"reaction",emoji:"🙌",label:"万歳"},
+      {text:null,cat:"work",emoji:"📚",label:"勉強"},{text:null,cat:"fun",emoji:"🍜",label:"食べる"},
+      {text:null,cat:"emotion",emoji:"💓",label:"ハート"},{text:null,cat:"daily",emoji:"🌸",label:"はにかみ"},
+      {text:null,cat:"reaction",emoji:"😯",label:"驚き"},{text:null,cat:"work",emoji:"⏰",label:"急ぎ"},
+      {text:null,cat:"emotion",emoji:"😜",label:"ウインク"},{text:null,cat:"fun",emoji:"🤷",label:"お手上げ"},
+      {text:null,cat:"daily",emoji:"🏃",label:"走る"},{text:null,cat:"emotion",emoji:"🥺",label:"うるうる"},
+      {text:null,cat:"reaction",emoji:"💯",label:"OKサイン"},{text:null,cat:"work",emoji:"🔍",label:"チェック"},
+      {text:null,cat:"fun",emoji:"😪",label:"ぐったり"},{text:null,cat:"emotion",emoji:"😠",label:"プンプン"},
+      {text:null,cat:"daily",emoji:"☀️",label:"元気"},{text:null,cat:"reaction",emoji:"🫶",label:"愛情"},
+      {text:null,cat:"fun",emoji:"😆",label:"ニヤニヤ"},{text:null,cat:"work",emoji:"✋",label:"待って"},
+      {text:null,cat:"emotion",emoji:"🌙",label:"夜ふかし"},{text:null,cat:"reaction",emoji:"🎊",label:"お祝い2"},
+      {text:null,cat:"daily",emoji:"❤️",label:"大好き"},{text:null,cat:"fun",emoji:"🌈",label:"ハッピー"},
+    ];
+  }else if(currentTab==='custom'&&customTexts.length>0){
+    textList=customTexts.map(t=>({text:t,cat:'fun',emoji:'✨',label:t}));
+  }else{
+    // 選択済みセリフをtextで照合
+    textList=source.filter(s=>selectedSerifs.has(s.text));
+    if(textList.length===0) textList=source; // 何も選んでいなければ全部
+  }
+  // タブ・メインは1個に制限
+  if(stampType.type==='main'||stampType.type==='tab'){
+    textList=textList.slice(0,1);
+  }
+
+  document.getElementById('loading').classList.add('show');
+  setTimeout(()=>{
+    try{
+    const poseMap={"笑顔":"smiling happily","泣き":"crying with big tears","怒り":"angry face with steam","眠い":"sleepy drooping eyes","バイバイ":"waving goodbye","お願い":"praying hands pose","グッド":"thumbs up pose","爆笑":"laughing out loud","お祝い":"celebrating with confetti","寝てる":"sleeping with zzz","ガッツポーズ":"fist pump victory","照れ顔":"blushing embarrassed","悩み":"thinking with question mark","ときめき":"heart eyes in love","困惑":"confused sweat drop","キラキラ":"sparkling joyful","がっかり":"disappointed slumped","万歳":"both arms raised cheer","勉強":"studying with book","食べる":"eating noodles happily","ハート":"holding heart shape","はにかみ":"shy hiding face","驚き":"shocked wide eyes","急ぎ":"rushing running","ウインク":"winking playfully","お手上げ":"shrugging helplessly","走る":"running fast","うるうる":"teary watery eyes","OKサイン":"OK hand gesture","チェック":"checking clipboard","ぐったり":"exhausted collapsed","プンプン":"puffed cheeks angry","元気":"energetic pose","愛情":"giving a hug","ニヤニヤ":"grinning mischievously","待って":"hand stop gesture","夜ふかし":"staying up late yawning","お祝い2":"party popper celebration","大好き":"heart gesture love","ハッピー":"rainbow joy dance"};
+    const prompts=textList.map((item,i)=>{
+      const isNoText = currentMode==='notext';
+      // テキストなしモードではセリフをposeの参考にするが、画像に文字は入れない
+      const poseDesc = item.pose || `${poseMap[item.label]||item.label} action/expression`;
+      const textForPrompt = isNoText ? null : item.text;
+      const prompt=buildPrompt(charDesc,selectedStyle,textForPrompt,extra,poseDesc,isNoText,stampType);
+      return{...item,prompt,index:i+1};
+    });
+    renderOutput(prompts);
+    document.getElementById('loading').classList.remove('show');
+    }catch(err){
+      console.error('generateAll error:', err);
+      document.getElementById('loading').classList.remove('show');
+      document.getElementById('outputArea').innerHTML='<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-rule"></div><h2>エラーが発生しました</h2><p>'+err.message+'</p></div>';
+    }
+  },600);
+}
+
+function renderOutput(prompts){
+  const area=document.getElementById('outputArea');
+  const total=prompts.length,cats=[...new Set(prompts.map(p=>p.cat))].length;
+
+
+
+  const arStr = stampType ? stampType.w+'×'+stampType.h : '370×320';
+  const typeLabel = stampType ? {stamp:'スタンプ',main:'メイン',tab:'タブ'}[stampType.type]||'スタンプ' : 'スタンプ';
+  const statsBar=`<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:80px;padding:12px 14px;background:var(--paper2);border:1.5px solid var(--border);border-top:3px solid var(--vermillion);">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;color:var(--ink);line-height:1;">${total}</div>
+      <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:3px;font-family:'IBM Plex Mono',monospace;">プロンプト数</div>
+    </div>
+    <div style="flex:1;min-width:80px;padding:12px 14px;background:var(--paper2);border:1.5px solid var(--border);border-top:3px solid var(--gold,#b8860b);">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;color:var(--ink);line-height:1;">${typeLabel}</div>
+      <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:3px;font-family:'IBM Plex Mono',monospace;">種別</div>
+    </div>
+    <div style="flex:1;min-width:80px;padding:12px 14px;background:var(--paper2);border:1.5px solid var(--border);border-top:3px solid var(--ink2);">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:700;color:var(--ink);line-height:1;">${arStr}</div>
+      <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:3px;font-family:'IBM Plex Mono',monospace;">サイズ (px)</div>
+    </div>
+  </div>`;
+  const actionRow=`<div class="action-row"><button class="action-btn copy-all" onclick="copyAll()">📋 全部まとめてコピー</button><button class="action-btn" onclick="downloadAll()">⬇️ テキスト保存</button></div>`;
+  const cards=prompts.map(p=>`<div class="prompt-card" id="card-${p.index}"><div class="card-header"><span class="card-num">#${String(p.index).padStart(2,'0')}</span><span class="card-label">${p.emoji} ${p.label}</span><span class="card-tag tag-${p.cat}">${CAT_LABELS[p.cat]||p.cat}</span></div><div class="card-body"><div class="prompt-text" id="pt-${p.index}">${escHtml(p.prompt)}</div><div class="card-footer"><button class="mini-btn copy" onclick="copyOne(${p.index})">📋 コピー</button><button class="mini-btn expand" onclick="toggleExpand(${p.index})" title="プロンプト全文を表示">▼ 全文</button></div></div></div>`).join('');
+  area.innerHTML=statsBar+actionRow+`<div class="prompt-grid">${cards}</div>`;
+  window._generatedPrompts=prompts;
+}
+function escHtml(str){return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── コピー（ワンクリック方式） ──
+function doCopy(text, onSuccess) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(onSuccess).catch(() => fallbackCopy(text, onSuccess));
+  } else { fallbackCopy(text, onSuccess); }
+}
+function fallbackCopy(text, onSuccess) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;font-size:16px;';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand('copy'); onSuccess(); } catch(e) { showFallbackModal(text); }
+  document.body.removeChild(ta);
+}
+function showFallbackModal(text) {
+  document.getElementById('modalLabel').textContent = '手動でコピーしてください (Ctrl+C)';
+  const ta = document.getElementById('modalText'); ta.value = text;
+  document.getElementById('copyModal').classList.add('open');
+  setTimeout(() => { ta.focus(); ta.select(); }, 80);
+}
+function openModal(text, label) { showFallbackModal(text); }
+function closeModal() { document.getElementById('copyModal').classList.remove('open'); }
+function tryCopy() {
+  const ta = document.getElementById('modalText'); ta.focus(); ta.select();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(ta.value).then(() => {
+      const btn = document.getElementById('modalCopyBtn');
+      btn.textContent = '✅ コピー完了'; btn.style.background = '#22863a';
+      showToast('✅ コピー完了');
+      setTimeout(() => { btn.textContent = '📋 コピーする'; btn.style.background = ''; closeModal(); }, 1800);
+    }).catch(() => { try { document.execCommand('copy'); closeModal(); showToast('✅ コピー完了'); } catch(e){} });
+  } else { try { document.execCommand('copy'); closeModal(); showToast('✅ コピー完了'); } catch(e){} }
+}
+function copyOne(idx) {
+  const p = window._generatedPrompts && window._generatedPrompts.find(x => x.index === idx);
+  if (!p) return;
+  const btn = document.querySelector('#card-' + idx + ' .mini-btn.copy');
+  doCopy(p.prompt, () => {
+    if (btn) {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '✅ コピー完了';
+      btn.style.cssText += ';background:#22863a;color:#fff;border-color:#22863a;';
+      setTimeout(() => { btn.innerHTML = orig; btn.style.cssText = ''; }, 2000);
+    }
+    showToast('✅ コピー完了！');
+  });
+}
+function copyAll() {
+  if (!window._generatedPrompts) return;
+  const text = window._generatedPrompts.map(p =>
+    '// #' + String(p.index).padStart(2,'0') + ' ' + p.emoji + ' ' + p.label + '\n' + p.prompt
+  ).join('\n\n');
+  const btn = document.querySelector('.action-btn.copy-all');
+  doCopy(text, () => {
+    if (btn) {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '✅ 全部コピー完了！';
+      btn.style.background = '#22863a';
+      setTimeout(() => { btn.innerHTML = orig; btn.style.background = ''; }, 2000);
+    }
+    showToast('✅ 全' + window._generatedPrompts.length + '個コピー完了！');
+  });
+}
+
+function copyAll(){if(!window._generatedPrompts)return;const text=window._generatedPrompts.map(p=>'// #'+String(p.index).padStart(2,'0')+' '+p.emoji+' '+p.label+'\n'+p.prompt).join('\n\n');openModal(text,'全'+window._generatedPrompts.length+'個のプロンプト');}
+function downloadAll(){if(!window._generatedPrompts)return;const text=window._generatedPrompts.map(p=>`#${String(p.index).padStart(2,'0')} ${p.emoji} ${p.label}\n${p.prompt}`).join('\n\n---\n\n');const blob=new Blob([text],{type:'text/plain'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`LINE_stamp_prompts_${Date.now()}.txt`;a.click();URL.revokeObjectURL(url);showToast('保存しました');}
+function toggleExpand(idx){
+  const el=document.getElementById('pt-'+idx);
+  const btn=el&&el.parentNode&&el.parentNode.querySelector('.mini-btn.expand');
+  const isOpen=el.style.maxHeight==='none';
+  el.style.maxHeight=isOpen?'':'none';
+  el.style.overflow=isOpen?'':'visible';
+  if(btn){btn.innerHTML=isOpen?'▼ 全文':'▲ 閉じる';}
+}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+
+</script>
+</body>
+</html>
