@@ -1,16 +1,18 @@
 <?php
-// --- 支払い完了して戻ってきた時の処理 ---
-// StripeのPayment Linkの成功URLに ?session_id={CHECKOUT_SESSION_ID} を設定しておく
+// --- 1. 支払い済みかどうかの判定 ---
+$is_paid = $_COOKIE['is_paid'] ?? 'false';
+
+// Stripeから戻ってきた直後（URLにsession_idがある）なら、支払い済みクッキーを発行
+// cs_ で始まる正規のStripe session IDのみ受け付ける（URL偽造防止）
 if (isset($_GET['session_id']) && strpos($_GET['session_id'], 'cs_') === 0) {
     setcookie('is_paid', 'true', time() + (86400 * 365), "/");
-    $_COOKIE['is_paid'] = 'true';
-    // URLからsession_idを取り除いてリダイレクト（ブックマーク汚染防止）
+    $is_paid = 'true';
+    // URLをクリーンにしてリダイレクト（ブックマーク汚染防止）
     header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
     exit;
 }
-$is_paid = ($_COOKIE['is_paid'] ?? '') === 'true';
 
-// --- 1. 無料体験の開始日をチェック（クッキーを使用） ---
+// --- 2. 無料体験の開始日をチェック ---
 $cookie_name = 'trial_start_date';
 $start_date = $_COOKIE[$cookie_name] ?? null;
 
@@ -19,13 +21,13 @@ if (!$start_date) {
     setcookie($cookie_name, $start_date, time() + (86400 * 365), "/");
 }
 
-// --- 2. 経過日数と残り日数を計算 ---
+// --- 3. 経過日数と残り日数を計算 ---
 $seconds_passed = time() - $start_date;
 $days_passed = floor($seconds_passed / 86400);
-$days_left = 7 - $days_passed; // 7日間無料
+$days_left = 7 - $days_passed;
 
-// --- 3. 未払い かつ 期限切れ の場合のみブロック ---
-if (!$is_paid && $days_left <= 0) {
+// --- 4. 判定：支払っていない 且つ 7日過ぎた場合のみブロック ---
+if ($is_paid !== 'true' && $days_left <= 0) {
     echo '<!DOCTYPE html>
     <html lang="ja">
     <head>
@@ -76,9 +78,9 @@ if (!$is_paid && $days_left <= 0) {
     exit;
 }
 
-// --- 4. バナーメッセージ ---
-if ($is_paid) {
-    $message = "【ご利用中】サブスクリプション登録済みです。いつもありがとうございます。";
+// --- 5. 案内メッセージの作成 ---
+if ($is_paid === 'true') {
+    $message = "【ご購読ありがとうございます】無制限にご利用いただけます。";
 } else {
     $message = "【無料体験中】あと " . $days_left . " 日間で終了します。終了後は月額1,000円で継続いただけます。";
 }
