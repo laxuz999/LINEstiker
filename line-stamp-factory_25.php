@@ -412,11 +412,11 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
         </div>
       </div>
       <div id="textModeArea">
-        <div class="tab-row">
-          <button class="tab active" id="tab40" onclick="switchTab('40')">厳選セリフ</button>
-          <button class="tab" id="tabCustom" onclick="switchTab('custom')">カスタム入力</button>
+        <div class="mode-row">
+          <button class="mode-btn active" id="tabCustom" onclick="switchTab('custom')">✏️ カスタム入力</button>
+          <button class="mode-btn" id="tab40" onclick="switchTab('40')">✨ 厳選セリフ</button>
         </div>
-        <div id="tabArea40">
+        <div id="tabArea40" style="display:none">
           <!-- セリフ選択コントロール -->
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
             <button onclick="selectAllSerifs()" style="padding:4px 10px;background:var(--ink);color:var(--paper);border:none;font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;border-radius:0;">全選択</button>
@@ -429,7 +429,7 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
           <!-- 選択数表示 -->
           <div id="serifSelCount" style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-top:6px;border-left:3px solid var(--vermillion);padding-left:8px;"></div>
         </div>
-        <div id="tabAreaCustom" style="display:none">
+        <div id="tabAreaCustom">
           <span class="lbl">追加セリフ（最大48個）</span>
           <div style="display:flex;gap:6px;">
             <input type="text" id="customInput" placeholder="例：草、それな、無理すぎ…" style="flex:1">
@@ -527,7 +527,7 @@ const FULL_40=[
   {text:"ありがとね",cat:"daily",emoji:"🌸",label:"感謝",pose:"gentle bow with hands clasped, soft shy smile, cherry blossoms floating softly around"},
 ];
 const CAT_LABELS={daily:"日常",emotion:"感情",reaction:"リアクション",work:"仕事",fun:"ユーモア"};
-let currentMode='text',currentTab='40',selectedStyle="cute kawaii anime illustration style";
+let currentMode='text',currentTab='custom',selectedStyle="cute kawaii anime illustration style";
 let customTexts=[];
 try{const _s=localStorage.getItem('customTexts');if(_s)customTexts=JSON.parse(_s);}catch(e){}
 let selectedSerifs=new Set();
