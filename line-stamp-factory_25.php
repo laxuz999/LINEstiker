@@ -232,6 +232,8 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
 .action-btn:hover{background:var(--ink);color:var(--paper);border-color:var(--ink);}
 .action-btn.copy-all{background:var(--ink);color:var(--paper);border-color:var(--ink);}
 .action-btn.copy-all:hover{background:var(--ink2);}
+.action-btn.seq-btn{background:#06C755;color:#fff;border-color:#00B900;}
+.action-btn.seq-btn:hover{background:#00B900;}
 .prompt-grid{display:grid;gap:10px;}
 .prompt-card{background:var(--paper2);border:1.5px solid var(--border);transition:border-color .15s;}
 .prompt-card:hover{border-color:var(--ink2);}
@@ -1143,10 +1145,11 @@ function renderOutput(prompts){
       <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:3px;font-family:'IBM Plex Mono',monospace;">サイズ (px)</div>
     </div>
   </div>`;
-  const actionRow=`<div class="action-row"><button class="action-btn copy-all" onclick="copyAll()">📋 全部まとめてコピー</button><button class="action-btn" onclick="downloadAll()">⬇️ テキスト保存</button></div>`;
+  const actionRow=`<div class="action-row"><button class="action-btn copy-all" onclick="copyAll()">📋 全部まとめてコピー</button><button class="action-btn seq-btn" id="seqCopyBtn" onclick="copyNext()">▶ 順番にコピー <span id="seqLabel">1/${prompts.length}</span></button><button class="action-btn" onclick="downloadAll()">⬇️ テキスト保存</button></div>`;
   const cards=prompts.map(p=>`<div class="prompt-card" id="card-${p.index}"><div class="card-header"><span class="card-num">#${String(p.index).padStart(2,'0')}</span><span class="card-label">${p.emoji} ${p.label}</span><span class="card-tag tag-${p.cat}">${CAT_LABELS[p.cat]||p.cat}</span></div><div class="card-body"><div class="prompt-text" id="pt-${p.index}">${escHtml(p.prompt)}</div><div class="card-footer"><button class="mini-btn copy" onclick="copyOne(${p.index})">📋 コピー</button><button class="mini-btn expand" onclick="toggleExpand(${p.index})" title="プロンプト全文を表示">▼ 全文</button></div></div></div>`).join('');
   area.innerHTML=statsBar+actionRow+`<div class="prompt-grid">${cards}</div>`;
   window._generatedPrompts=prompts;
+  window._seqIndex=0;
 }
 function escHtml(str){return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
@@ -1218,6 +1221,37 @@ function copyAll(){
   if(!window._generatedPrompts)return;
   const text=window._generatedPrompts.map(p=>'// #'+String(p.index).padStart(2,'0')+' '+p.emoji+' '+p.label+'\n'+p.prompt).join('\n\n\n');
   doCopy(text, ()=>showToast('✅ '+window._generatedPrompts.length+'個のプロンプトをコピーしました'));
+}
+function copyNext(){
+  if(!window._generatedPrompts)return;
+  const all=window._generatedPrompts;
+  const i=window._seqIndex||0;
+  if(i>=all.length){
+    window._seqIndex=0;
+    const lbl=document.getElementById('seqLabel');
+    if(lbl)lbl.textContent='1/'+all.length;
+    const btn=document.getElementById('seqCopyBtn');
+    if(btn){btn.textContent='▶ 順番にコピー ';btn.insertAdjacentHTML('beforeend','<span id="seqLabel">1/'+all.length+'</span>');}
+    showToast('🔁 最初に戻りました');
+    return;
+  }
+  const p=all[i];
+  const text=p.prompt;
+  doCopy(text,()=>{
+    window._seqIndex=i+1;
+    const next=window._seqIndex;
+    const lbl=document.getElementById('seqLabel');
+    if(lbl)lbl.textContent=(next<all.length?next+1:1)+'/'+all.length;
+    const btn=document.getElementById('seqCopyBtn');
+    if(btn)btn.style.background=next>=all.length?'var(--muted)':'';
+    // ハイライト：コピー済みカードを暗くして次のカードを強調
+    document.querySelectorAll('.prompt-card').forEach((c,ci)=>{
+      c.style.opacity=ci<next?'0.4':'1';
+      c.style.outline=ci===next?'2px solid var(--vermillion)':'';
+    });
+    if(next>=all.length){showToast('✅ 全'+all.length+'枚コピー完了！もう一度押すと最初に戻ります');}
+    else{showToast('✅ #'+String(p.index).padStart(2,'0')+' コピー → 次は #'+String(all[next].index).padStart(2,'0'));}
+  });
 }
 function downloadAll(){if(!window._generatedPrompts)return;const text=window._generatedPrompts.map(p=>`#${String(p.index).padStart(2,'0')} ${p.emoji} ${p.label}\n${p.prompt}`).join('\n\n---\n\n');const blob=new Blob([text],{type:'text/plain'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`LINE_stamp_prompts_${Date.now()}.txt`;a.click();URL.revokeObjectURL(url);showToast('保存しました');}
 function toggleExpand(idx){
