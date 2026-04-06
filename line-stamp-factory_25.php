@@ -217,6 +217,8 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
 .count-btn.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
 .mini-btn.expand{background:var(--paper3);color:var(--ink2);border-color:var(--border2);font-size:10px;}
 .mini-btn.expand:hover{background:var(--ink);color:var(--paper);}
+.mini-btn.fav{background:var(--paper3);color:var(--muted);border-color:var(--border2);font-size:12px;}
+.mini-btn.fav:hover{background:#fff8e1;border-color:#f5a623;}
 .gen-btn{width:100%;padding:16px;background:var(--vermillion);border:none;color:#fff;font-family:'Shippori Mincho',serif;font-size:17px;font-weight:800;letter-spacing:0.18em;cursor:pointer;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:0;position:relative;overflow:hidden;}
 .gen-btn::after{content:'';position:absolute;inset:2px;border:1px solid rgba(255,255,255,.18);pointer-events:none;}
 .gen-btn:hover{background:var(--vermillion2);}
@@ -322,6 +324,11 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
       <div class="section">
         <span class="lbl">キャラクター説明</span>
         <textarea id="charDesc" rows="3" placeholder="例：丸くてふわふわした白いウサギ。大きな瞳でちょこんと座っている。"></textarea>
+        <div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="presetNameInput" placeholder="プリセット名（例：くま）" style="flex:1;min-width:100px;font-size:11px;padding:5px 8px;">
+          <button onclick="savePreset()" style="padding:5px 10px;background:var(--ink);color:var(--paper);border:none;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;border-radius:0;white-space:nowrap;">💾 保存</button>
+        </div>
+        <div id="presetList" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;"></div>
       </div>
       <div class="section">
         <span class="lbl">ビジュアルスタイル</span>
@@ -422,7 +429,7 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
             <button onclick="selectAllSerifs()" style="padding:4px 10px;background:var(--ink);color:var(--paper);border:none;font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;border-radius:0;">全選択</button>
             <button onclick="clearAllSerifs()" style="padding:4px 10px;background:none;border:1px solid var(--border2);font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;color:var(--muted);border-radius:0;">全解除</button>
             <button onclick="selectByCount()" style="padding:4px 10px;background:var(--vermillion);color:#fff;border:none;font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;border-radius:0;" id="selectCountBtn">上から<span id="selectCountLabel">32</span>個選択</button>
-            <button onclick="refreshSerifs()" style="padding:4px 10px;background:none;border:1px solid var(--border2);font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;color:var(--muted);border-radius:0;margin-left:auto;">↺ 入替</button>
+            <button id="refreshBtn" onclick="refreshSerifs()" style="padding:4px 10px;background:none;border:1px solid var(--border2);font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;color:var(--muted);border-radius:0;margin-left:auto;">↺ 入替 <span id="serifPageNum">1/4</span></button>
           </div>
           <!-- カテゴリ別セリフ一覧（チェック式） -->
           <div id="serifCheckList"></div>
@@ -430,7 +437,7 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
           <div id="serifSelCount" style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-top:6px;border-left:3px solid var(--vermillion);padding-left:8px;"></div>
         </div>
         <div id="tabAreaCustom">
-          <span class="lbl">追加セリフ（最大48個）</span>
+          <span class="lbl">追加セリフ（最大48個）</span><span style="font-size:10px;color:var(--muted);margin-left:8px;">← Enterキーで追加</span>
           <div style="display:flex;gap:6px;">
             <input type="text" id="customInput" placeholder="例：草、それな、無理すぎ…" style="flex:1">
             <button onclick="addCustomText(document.getElementById('customInput').value.trim());document.getElementById('customInput').value='';" style="padding:10px 14px;background:var(--ink);color:var(--paper);border:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;border-radius:0;transition:background .15s;" onmouseover="this.style.background='var(--vermillion)'" onmouseout="this.style.background='var(--ink)'">追加</button>
@@ -749,6 +756,8 @@ function refreshSerifs(){
   renderSerifCheckList();
   renderSelectedSummary();
   const labels=['トレンド','日常・ていねい','友達・カジュアル','トレンド・スラング'];
+  const pn=document.getElementById('serifPageNum');
+  if(pn)pn.textContent=(serifPageIndex+1)+'/4 '+labels[serifPageIndex];
   showToast('↺ '+labels[serifPageIndex]+' に入替えました');
 }
 
@@ -876,6 +885,7 @@ aiSerifs = TREND_SERIFS;
 aiSerifs.slice(0,stampCount).forEach(s=>selectedSerifs.add(s.text));
 renderSerifCheckList();
 renderCustomTags();
+renderPresets();
 renderExtraSerifList();
 
 // ── トライアルlocalStorageバックアップ ──
@@ -959,6 +969,59 @@ function switchTab(t){
 }
 const customInput=document.getElementById('customInput');
 customInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addCustomText(customInput.value.trim());customInput.value='';}});
+// ── キャラクタープリセット ──
+let charPresets=[];
+try{const _p=localStorage.getItem('lsf_presets');if(_p)charPresets=JSON.parse(_p);}catch(e){}
+function savePreset(){
+  const name=document.getElementById('presetNameInput').value.trim();
+  const desc=document.getElementById('charDesc').value.trim();
+  if(!name||!desc){showToast('⚠️ プリセット名とキャラクター説明を入力してください');return;}
+  const existing=charPresets.findIndex(p=>p.name===name);
+  const preset={name,desc,style:selectedStyle};
+  if(existing>=0){charPresets[existing]=preset;}else{charPresets.push(preset);}
+  try{localStorage.setItem('lsf_presets',JSON.stringify(charPresets));}catch(e){}
+  document.getElementById('presetNameInput').value='';
+  renderPresets();
+  showToast('💾 「'+name+'」を保存しました');
+}
+function loadPreset(i){
+  const p=charPresets[i];if(!p)return;
+  document.getElementById('charDesc').value=p.desc;
+  try{localStorage.setItem('lsf_charDesc',p.desc);}catch(e){}
+  if(p.style){
+    selectedStyle=p.style;
+    try{localStorage.setItem('lsf_style',p.style);}catch(e){}
+    document.querySelectorAll('.style-btn[data-style]').forEach(b=>{
+      const panel=b.closest('.style-cat-panel');
+      if(b.dataset.style===p.style){
+        if(panel)panel.querySelectorAll('.style-btn').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+        const ja=b.querySelector('.ja')?b.querySelector('.ja').textContent:b.textContent;
+        const en=b.querySelector('.en')?b.querySelector('.en').textContent:'';
+        const disp=document.getElementById('selectedStyleDisplay');
+        if(disp)disp.textContent='選択中 → '+ja+(en?' ('+en+')':'');
+      }
+    });
+  }
+  showToast('✅ 「'+p.name+'」を読み込みました');
+}
+function deletePreset(i){
+  const name=charPresets[i]?charPresets[i].name:'';
+  charPresets.splice(i,1);
+  try{localStorage.setItem('lsf_presets',JSON.stringify(charPresets));}catch(e){}
+  renderPresets();
+  showToast('🗑️ 「'+name+'」を削除しました');
+}
+function renderPresets(){
+  const c=document.getElementById('presetList');if(!c)return;
+  c.innerHTML='';
+  charPresets.forEach((p,i)=>{
+    const d=document.createElement('div');
+    d.style.cssText='display:flex;align-items:center;gap:2px;background:var(--paper2);border:1px solid var(--border);padding:2px 4px 2px 8px;font-size:11px;';
+    d.innerHTML=`<span onclick="loadPreset(${i})" style="cursor:pointer;font-weight:700;color:var(--ink2);">${p.name}</span><button onclick="deletePreset(${i})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:12px;padding:0 2px;line-height:1;">×</button>`;
+    c.appendChild(d);
+  });
+}
 function addCustomText(txt){if(!txt||customTexts.length>=48||customTexts.includes(txt))return;customTexts.push(txt);saveCustomTexts();renderCustomTags();}
 function saveCustomTexts(){try{localStorage.setItem('customTexts',JSON.stringify(customTexts));}catch(e){}}
 function renderCustomTags(){const c=document.getElementById('customTags');if(!c)return;c.innerHTML='';customTexts.forEach((t,i)=>{const d=document.createElement('div');d.className='ctag';d.innerHTML=`<span>${t}</span><button onclick="removeCustom(${i})">×</button>`;c.appendChild(d);});}
@@ -1149,10 +1212,14 @@ function renderOutput(prompts){
     </div>
   </div>`;
   const actionRow=`<div class="action-row"><button class="action-btn seq-btn" id="seqCopyBtn" onclick="copyNext()">▶ 順番にコピー <span id="seqLabel">1/${prompts.length}</span></button></div>`;
-  const cards=prompts.map(p=>`<div class="prompt-card" id="card-${p.index}"><div class="card-header"><span class="card-num">#${String(p.index).padStart(2,'0')}</span><span class="card-label">${p.emoji} ${p.label}</span><span class="card-tag tag-${p.cat}">${CAT_LABELS[p.cat]||p.cat}</span></div><div class="card-body"><div class="prompt-text" id="pt-${p.index}">${escHtml(p.prompt)}</div><div class="card-footer"><button class="mini-btn copy" onclick="copyOne(${p.index})">📋 コピー</button><button class="mini-btn expand" onclick="toggleExpand(${p.index})" title="プロンプト全文を表示">▼ 全文</button></div></div></div>`).join('');
-  area.innerHTML=statsBar+actionRow+`<div class="prompt-grid">${cards}</div>`;
+  window._favorites=window._favorites||new Set();
+  const favBar=`<div style="text-align:right;margin-bottom:6px;"><button id="favFilterBtn" onclick="toggleFavFilter()" style="padding:4px 10px;border:1px solid var(--border2);background:none;font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;color:var(--muted);border-radius:0;">⭐ お気に入りのみ表示</button></div>`;
+  const cards=prompts.map(p=>`<div class="prompt-card" id="card-${p.index}"><div class="card-header"><span class="card-num">#${String(p.index).padStart(2,'0')}</span><span class="card-label">${p.emoji} ${p.label}</span><span class="card-tag tag-${p.cat}">${CAT_LABELS[p.cat]||p.cat}</span></div><div class="card-body"><div class="prompt-text" id="pt-${p.index}">${escHtml(p.prompt)}</div><div class="card-footer"><button class="mini-btn copy" onclick="copyOne(${p.index})">📋 コピー</button><button class="mini-btn expand" onclick="toggleExpand(${p.index})" title="プロンプト全文を表示">▼ 全文</button><button class="mini-btn fav" id="fav-${p.index}" onclick="toggleFav(${p.index})" title="お気に入り">☆</button></div></div></div>`).join('');
+  area.innerHTML=statsBar+favBar+actionRow+`<div class="prompt-grid">${cards}</div>`;
   window._generatedPrompts=prompts;
   window._seqIndex=0;
+  window._favFilter=false;
+  window._favorites.forEach(idx=>{const b=document.getElementById('fav-'+idx);if(b){b.textContent='⭐';b.style.color='#f5a623';}});
 }
 function escHtml(str){return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
@@ -1224,6 +1291,39 @@ function copyAll(){
   if(!window._generatedPrompts)return;
   const text=window._generatedPrompts.map(p=>'// #'+String(p.index).padStart(2,'0')+' '+p.emoji+' '+p.label+'\n'+p.prompt).join('\n\n\n');
   doCopy(text, ()=>showToast('✅ '+window._generatedPrompts.length+'個のプロンプトをコピーしました'));
+}
+// ── お気に入り ──
+function toggleFav(idx){
+  if(!window._favorites)window._favorites=new Set();
+  const btn=document.getElementById('fav-'+idx);
+  if(window._favorites.has(idx)){
+    window._favorites.delete(idx);
+    if(btn){btn.textContent='☆';btn.style.color='';}
+    showToast('☆ お気に入りを解除しました');
+  }else{
+    window._favorites.add(idx);
+    if(btn){btn.textContent='⭐';btn.style.color='#f5a623';}
+    showToast('⭐ お気に入りに追加しました');
+  }
+  if(window._favFilter)applyFavFilter();
+}
+function toggleFavFilter(){
+  window._favFilter=!window._favFilter;
+  const btn=document.getElementById('favFilterBtn');
+  if(btn){
+    btn.style.background=window._favFilter?'var(--ink)':'none';
+    btn.style.color=window._favFilter?'var(--paper)':'var(--muted)';
+    btn.textContent=window._favFilter?'⭐ お気に入りのみ表示中（全表示に戻す）':'⭐ お気に入りのみ表示';
+  }
+  applyFavFilter();
+}
+function applyFavFilter(){
+  document.querySelectorAll('.prompt-card').forEach(c=>{
+    const idx=parseInt(c.id.replace('card-',''));
+    if(window._favFilter){
+      c.style.display=window._favorites&&window._favorites.has(idx)?'':'none';
+    }else{c.style.display='';}
+  });
 }
 function copyNext(){
   if(!window._generatedPrompts)return;
