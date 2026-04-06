@@ -1310,12 +1310,19 @@ function toggleFav(idx){
 }
 function toggleFavFilter(){
   window._favFilter=!window._favFilter;
+  window._seqIndex=0;// フィルター切替時に順番をリセット
   const btn=document.getElementById('favFilterBtn');
   if(btn){
     btn.style.background=window._favFilter?'var(--ink)':'none';
     btn.style.color=window._favFilter?'var(--paper)':'';
     btn.textContent=window._favFilter?'✅ 全表示に戻す':'⭐ お気に入りのみ';
   }
+  // ボタンのカウント表示も更新
+  const target=window._favFilter&&favIds.length>0
+    ? window._generatedPrompts.filter(p=>favIds.includes(p.index))
+    : window._generatedPrompts;
+  const lbl=document.getElementById('seqLabel');
+  if(lbl&&target)lbl.textContent='1/'+(target?target.length:0);
   applyFavFilter();
 }
 function applyFavFilter(){
@@ -1326,14 +1333,16 @@ function applyFavFilter(){
 }
 function copyNext(){
   if(!window._generatedPrompts)return;
-  const all=window._generatedPrompts;
+  // お気に入りフィルター中はお気に入りのみ対象にする
+  const all=window._favFilter&&favIds.length>0
+    ? window._generatedPrompts.filter(p=>favIds.includes(p.index))
+    : window._generatedPrompts;
+  if(all.length===0){showToast('⭐ お気に入りがありません');return;}
   const i=window._seqIndex||0;
   if(i>=all.length){
     window._seqIndex=0;
     const lbl=document.getElementById('seqLabel');
     if(lbl)lbl.textContent='1/'+all.length;
-    const btn=document.getElementById('seqCopyBtn');
-    if(btn){btn.textContent='▶ 順番にコピー ';btn.insertAdjacentHTML('beforeend','<span id="seqLabel">1/'+all.length+'</span>');}
     showToast('🔁 最初に戻りました');
     return;
   }
@@ -1346,12 +1355,14 @@ function copyNext(){
     if(lbl)lbl.textContent=(next<all.length?next+1:1)+'/'+all.length;
     const btn=document.getElementById('seqCopyBtn');
     if(btn)btn.style.background=next>=all.length?'var(--muted)':'';
-    // ハイライト：コピー済みカードを暗くして次のカードを強調
-    document.querySelectorAll('.prompt-card').forEach((c,ci)=>{
-      c.style.opacity=ci<next?'0.4':'1';
-      c.style.outline=ci===next?'2px solid var(--vermillion)':'';
+    // ハイライト：対象カードのみ
+    document.querySelectorAll('.prompt-card').forEach(c=>{
+      const idx=parseInt(c.id.replace('card-',''),10);
+      const pos=all.findIndex(x=>x.index===idx);
+      c.style.opacity=pos>=0&&pos<next?'0.4':'1';
+      c.style.outline=pos===next?'2px solid var(--vermillion)':'';
     });
-    if(next>=all.length){showToast('✅ 全'+all.length+'枚コピー完了！もう一度押すと最初に戻ります');}
+    if(next>=all.length){showToast('✅ '+all.length+'枚コピー完了！もう一度押すと最初に戻ります');}
     else{showToast('✅ #'+String(p.index).padStart(2,'0')+' コピー → 次は #'+String(all[next].index).padStart(2,'0'));}
   });
 }
