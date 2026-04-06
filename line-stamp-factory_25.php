@@ -539,6 +539,8 @@ let customTexts=[];
 try{const _s=localStorage.getItem('customTexts');if(_s)customTexts=JSON.parse(_s);}catch(e){}
 let charPresets=[];
 try{const _p=localStorage.getItem('lsf_presets');if(_p)charPresets=JSON.parse(_p);}catch(e){}
+let favIds=[];// お気に入りプロンプトのindex一覧（数値配列）
+try{const _f=localStorage.getItem('lsf_favIds');if(_f)favIds=JSON.parse(_f);}catch(e){}
 let selectedSerifs=new Set();
 let stampType={type:'stamp',w:370,h:320};
 let stampCount=32;
@@ -1211,15 +1213,12 @@ function renderOutput(prompts){
       <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:3px;font-family:'IBM Plex Mono',monospace;">サイズ (px)</div>
     </div>
   </div>`;
-  const actionRow=`<div class="action-row"><button class="action-btn seq-btn" id="seqCopyBtn" onclick="copyNext()">▶ 順番にコピー <span id="seqLabel">1/${prompts.length}</span></button></div>`;
-  window._favorites=window._favorites||new Set();
-  const favBar=`<div style="text-align:right;margin-bottom:6px;"><button id="favFilterBtn" onclick="toggleFavFilter()" style="padding:4px 10px;border:1px solid var(--border2);background:none;font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;color:var(--muted);border-radius:0;">⭐ お気に入りのみ表示</button></div>`;
-  const cards=prompts.map(p=>`<div class="prompt-card" id="card-${p.index}"><div class="card-header"><span class="card-num">#${String(p.index).padStart(2,'0')}</span><span class="card-label">${p.emoji} ${p.label}</span><span class="card-tag tag-${p.cat}">${CAT_LABELS[p.cat]||p.cat}</span></div><div class="card-body"><div class="prompt-text" id="pt-${p.index}">${escHtml(p.prompt)}</div><div class="card-footer"><button class="mini-btn copy" onclick="copyOne(${p.index})">📋 コピー</button><button class="mini-btn expand" onclick="toggleExpand(${p.index})" title="プロンプト全文を表示">▼ 全文</button><button class="mini-btn fav" id="fav-${p.index}" onclick="toggleFav(${p.index})" title="お気に入り">☆</button></div></div></div>`).join('');
-  area.innerHTML=statsBar+favBar+actionRow+`<div class="prompt-grid">${cards}</div>`;
+  const actionRow=`<div class="action-row" style="display:flex;gap:6px;"><button class="action-btn seq-btn" id="seqCopyBtn" onclick="copyNext()">▶ 順番にコピー <span id="seqLabel">1/${prompts.length}</span></button><button class="action-btn" id="favFilterBtn" onclick="toggleFavFilter()" style="flex:0 0 auto;">⭐ お気に入りのみ</button></div>`;
+  const cards=prompts.map(p=>{const isFav=favIds.includes(p.index);return`<div class="prompt-card" id="card-${p.index}"><div class="card-header"><span class="card-num">#${String(p.index).padStart(2,'0')}</span><span class="card-label">${p.emoji} ${p.label}</span><span class="card-tag tag-${p.cat}">${CAT_LABELS[p.cat]||p.cat}</span></div><div class="card-body"><div class="prompt-text" id="pt-${p.index}">${escHtml(p.prompt)}</div><div class="card-footer"><button class="mini-btn copy" onclick="copyOne(${p.index})">📋 コピー</button><button class="mini-btn expand" onclick="toggleExpand(${p.index})" title="プロンプト全文を表示">▼ 全文</button><button class="mini-btn fav" id="fav-${p.index}" onclick="toggleFav(${p.index})" style="${isFav?'color:#f5a623;':''}">⭐</button></div></div></div>`}).join('');
+  area.innerHTML=statsBar+actionRow+`<div class="prompt-grid">${cards}</div>`;
   window._generatedPrompts=prompts;
   window._seqIndex=0;
   window._favFilter=false;
-  window._favorites.forEach(idx=>{const b=document.getElementById('fav-'+idx);if(b){b.textContent='⭐';b.style.color='#f5a623';}});
 }
 function escHtml(str){return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
@@ -1294,17 +1293,18 @@ function copyAll(){
 }
 // ── お気に入り ──
 function toggleFav(idx){
-  if(!window._favorites)window._favorites=new Set();
   const btn=document.getElementById('fav-'+idx);
-  if(window._favorites.has(idx)){
-    window._favorites.delete(idx);
-    if(btn){btn.textContent='☆';btn.style.color='';}
-    showToast('☆ お気に入りを解除しました');
+  const pos=favIds.indexOf(idx);
+  if(pos>=0){
+    favIds.splice(pos,1);
+    if(btn)btn.style.color='';
+    showToast('お気に入りを解除しました');
   }else{
-    window._favorites.add(idx);
-    if(btn){btn.textContent='⭐';btn.style.color='#f5a623';}
+    favIds.push(idx);
+    if(btn)btn.style.color='#f5a623';
     showToast('⭐ お気に入りに追加しました');
   }
+  try{localStorage.setItem('lsf_favIds',JSON.stringify(favIds));}catch(e){}
   if(window._favFilter)applyFavFilter();
 }
 function toggleFavFilter(){
@@ -1312,17 +1312,15 @@ function toggleFavFilter(){
   const btn=document.getElementById('favFilterBtn');
   if(btn){
     btn.style.background=window._favFilter?'var(--ink)':'none';
-    btn.style.color=window._favFilter?'var(--paper)':'var(--muted)';
-    btn.textContent=window._favFilter?'⭐ お気に入りのみ表示中（全表示に戻す）':'⭐ お気に入りのみ表示';
+    btn.style.color=window._favFilter?'var(--paper)':'';
+    btn.textContent=window._favFilter?'✅ 全表示に戻す':'⭐ お気に入りのみ';
   }
   applyFavFilter();
 }
 function applyFavFilter(){
   document.querySelectorAll('.prompt-card').forEach(c=>{
-    const idx=parseInt(c.id.replace('card-',''));
-    if(window._favFilter){
-      c.style.display=window._favorites&&window._favorites.has(idx)?'':'none';
-    }else{c.style.display='';}
+    const idx=parseInt(c.id.replace('card-',''),10);
+    c.style.display=(window._favFilter&&!favIds.includes(idx))?'none':'';
   });
 }
 function copyNext(){
