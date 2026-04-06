@@ -537,6 +537,8 @@ const CAT_LABELS={daily:"日常",emotion:"感情",reaction:"リアクション",
 let currentMode='text',currentTab='custom',selectedStyle="cute kawaii anime illustration style";
 let customTexts=[];
 try{const _s=localStorage.getItem('customTexts');if(_s)customTexts=JSON.parse(_s);}catch(e){}
+let charPresets=[];
+try{const _p=localStorage.getItem('lsf_presets');if(_p)charPresets=JSON.parse(_p);}catch(e){}
 let selectedSerifs=new Set();
 let stampType={type:'stamp',w:370,h:320};
 let stampCount=32;
@@ -970,8 +972,6 @@ function switchTab(t){
 const customInput=document.getElementById('customInput');
 customInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addCustomText(customInput.value.trim());customInput.value='';}});
 // ── キャラクタープリセット ──
-let charPresets=[];
-try{const _p=localStorage.getItem('lsf_presets');if(_p)charPresets=JSON.parse(_p);}catch(e){}
 function savePreset(){
   const name=document.getElementById('presetNameInput').value.trim();
   const desc=document.getElementById('charDesc').value.trim();
