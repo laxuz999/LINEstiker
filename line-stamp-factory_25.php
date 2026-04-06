@@ -219,6 +219,10 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
 .mini-btn.expand:hover{background:var(--ink);color:var(--paper);}
 .mini-btn.fav{background:var(--paper3);color:var(--muted);border-color:var(--border2);font-size:12px;}
 .mini-btn.fav:hover{background:#fff8e1;border-color:#f5a623;}
+.mini-btn.edit{background:var(--paper3);color:var(--muted);border-color:var(--border2);font-size:11px;}
+.mini-btn.edit:hover{background:#fffbe6;border-color:#e6a817;}
+.mini-btn.edit.editing{background:#e6a817;color:#fff;border-color:#c8920f;}
+.prompt-text[contenteditable="true"]{outline:2px solid #e6a817;background:#fffbe6;cursor:text;}
 .gen-btn{width:100%;padding:16px;background:var(--vermillion);border:none;color:#fff;font-family:'Shippori Mincho',serif;font-size:17px;font-weight:800;letter-spacing:0.18em;cursor:pointer;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:0;position:relative;overflow:hidden;}
 .gen-btn::after{content:'';position:absolute;inset:2px;border:1px solid rgba(255,255,255,.18);pointer-events:none;}
 .gen-btn:hover{background:var(--vermillion2);}
@@ -456,6 +460,7 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
   </div>
 
   <div class="right-col">
+    <div id="historyTabs" style="display:none;border-bottom:1.5px solid var(--border);margin-bottom:10px;display:flex;gap:0;"></div>
     <div id="outputArea">
       <div class="empty-state">
         <div class="empty-icon">🏭</div>
@@ -543,7 +548,9 @@ let favIds=[];// お気に入りプロンプトのindex一覧（数値配列）
 try{const _f=localStorage.getItem('lsf_favIds');if(_f)favIds=JSON.parse(_f);}catch(e){}
 let selectedSerifs=new Set();
 let stampType={type:'stamp',w:370,h:320};
+try{const _st=localStorage.getItem('lsf_stampType');if(_st)stampType=JSON.parse(_st);}catch(e){}
 let stampCount=32;
+try{const _sc=localStorage.getItem('lsf_stampCount');if(_sc)stampCount=parseInt(_sc,10);}catch(e){}
 let extraSerifs=[];
 let serifPageIndex=0;
 let aiSerifs=null; // initPreviewTags時にTREND_SERIFSで初期化
@@ -557,6 +564,7 @@ function setStampType(el){
   document.querySelectorAll('#stampTypeGrid .stype-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   stampType={type:el.dataset.stype,w:+el.dataset.w,h:+el.dataset.h};
+  try{localStorage.setItem('lsf_stampType',JSON.stringify(stampType));}catch(e){}
   const cs=document.getElementById('countSection');
   if(stampType.type==='main'||stampType.type==='tab'){
     cs.style.opacity='0.4';cs.style.pointerEvents='none';stampCount=1;
@@ -571,6 +579,7 @@ function setCount(el){
   document.querySelectorAll('.count-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   stampCount=+el.dataset.count;
+  try{localStorage.setItem('lsf_stampCount',stampCount);}catch(e){}
   const lbl=document.getElementById('selectCountLabel');
   if(lbl)lbl.textContent=stampCount;
   // 個数が変わったら超過分を削除
@@ -891,6 +900,30 @@ renderSerifCheckList();
 renderCustomTags();
 renderPresets();
 renderExtraSerifList();
+
+// ── スタンプ種別・枚数の復元 ──
+(function(){
+  // スタンプ種別ボタンをactive復元
+  if(stampType.type){
+    const stBtn=document.querySelector(`#stampTypeGrid .stype-btn[data-stype="${stampType.type}"]`);
+    if(stBtn){
+      document.querySelectorAll('#stampTypeGrid .stype-btn').forEach(b=>b.classList.remove('active'));
+      stBtn.classList.add('active');
+      const cs=document.getElementById('countSection');
+      if(stampType.type==='main'||stampType.type==='tab'){
+        if(cs){cs.style.opacity='0.4';cs.style.pointerEvents='none';}
+      }
+    }
+  }
+  // 枚数ボタンをactive復元
+  const cBtn=document.querySelector(`.count-btn[data-count="${stampCount}"]`);
+  if(cBtn){
+    document.querySelectorAll('.count-btn').forEach(b=>b.classList.remove('active'));
+    cBtn.classList.add('active');
+    const lbl=document.getElementById('selectCountLabel');
+    if(lbl)lbl.textContent=stampCount;
+  }
+})();
 
 // ── トライアルlocalStorageバックアップ ──
 (function(){
@@ -1215,11 +1248,17 @@ function renderOutput(prompts){
     </div>
   </div>`;
   const actionRow=`<div class="action-row" style="display:flex;gap:6px;"><button class="action-btn seq-btn" id="seqCopyBtn" onclick="copyNext()">▶ 順番にコピー <span id="seqLabel">1/${prompts.length}</span></button><button class="action-btn" id="favFilterBtn" onclick="toggleFavFilter()" style="flex:0 0 auto;">⭐ お気に入りのみ</button></div>`;
-  const cards=prompts.map(p=>{const isFav=favIds.includes(p.index);return`<div class="prompt-card" id="card-${p.index}"><div class="card-header"><span class="card-num">#${String(p.index).padStart(2,'0')}</span><span class="card-label">${p.emoji} ${p.label}</span><span class="card-tag tag-${p.cat}">${CAT_LABELS[p.cat]||p.cat}</span></div><div class="card-body"><div class="prompt-text" id="pt-${p.index}">${escHtml(p.prompt)}</div><div class="card-footer"><button class="mini-btn copy" onclick="copyOne(${p.index})">📋 コピー</button><button class="mini-btn expand" onclick="toggleExpand(${p.index})" title="プロンプト全文を表示">▼ 全文</button><button class="mini-btn fav" id="fav-${p.index}" onclick="toggleFav(${p.index})" style="${isFav?'color:#f5a623;':''}">⭐</button></div></div></div>`}).join('');
+  const cards=prompts.map(p=>{const isFav=favIds.includes(p.index);return`<div class="prompt-card" id="card-${p.index}"><div class="card-header"><span class="card-num">#${String(p.index).padStart(2,'0')}</span><span class="card-label">${p.emoji} ${p.label}</span><span class="card-tag tag-${p.cat}">${CAT_LABELS[p.cat]||p.cat}</span></div><div class="card-body"><div class="prompt-text" id="pt-${p.index}">${escHtml(p.prompt)}</div><div class="card-footer"><button class="mini-btn copy" onclick="copyOne(${p.index})">📋 コピー</button><button class="mini-btn expand" onclick="toggleExpand(${p.index})" title="プロンプト全文を表示">▼ 全文</button><button class="mini-btn edit" id="edit-${p.index}" onclick="toggleEdit(${p.index})" title="プロンプトを編集">✏️</button><button class="mini-btn fav" id="fav-${p.index}" onclick="toggleFav(${p.index})" style="${isFav?'color:#f5a623;':''}">⭐</button></div></div></div>`}).join('');
   area.innerHTML=statsBar+actionRow+`<div class="prompt-grid">${cards}</div>`;
   window._generatedPrompts=prompts;
   window._seqIndex=0;
   window._favFilter=false;
+  // 履歴に追加（最大3セット）
+  if(!window._history)window._history=[];
+  const charDescVal=document.getElementById('charDesc')?document.getElementById('charDesc').value:'';
+  window._history.unshift({prompts:prompts.map(p=>({...p})),label:charDescVal.slice(0,12)||(new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}))});
+  if(window._history.length>3)window._history.pop();
+  renderHistoryTabs();
 }
 function escHtml(str){return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
@@ -1291,6 +1330,48 @@ function copyAll(){
   if(!window._generatedPrompts)return;
   const text=window._generatedPrompts.map(p=>'// #'+String(p.index).padStart(2,'0')+' '+p.emoji+' '+p.label+'\n'+p.prompt).join('\n\n\n');
   doCopy(text, ()=>showToast('✅ '+window._generatedPrompts.length+'個のプロンプトをコピーしました'));
+}
+// ── 生成履歴タブ ──
+function renderHistoryTabs(){
+  const tabs=document.getElementById('historyTabs');
+  if(!tabs||!window._history||window._history.length===0){if(tabs)tabs.style.display='none';return;}
+  tabs.style.display='flex';
+  tabs.innerHTML=window._history.map((h,i)=>`<button onclick="switchHistory(${i})" style="padding:6px 14px;border:none;border-bottom:${i===0?'2px solid var(--vermillion)':'2px solid transparent'};background:${i===0?'var(--paper)':'var(--paper2)'};font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;color:${i===0?'var(--vermillion)':'var(--muted)'};border-radius:0;" id="htab-${i}">${i===0?'● 現在':'履歴'+(i)} ${h.label||''}</button>`).join('');
+}
+function switchHistory(i){
+  if(!window._history||!window._history[i])return;
+  window._generatedPrompts=window._history[i].prompts;
+  window._seqIndex=0;
+  window._favFilter=false;
+  renderOutput(window._history[i].prompts);
+  // タブのactiveを更新
+  window._history.forEach((_,j)=>{
+    const t=document.getElementById('htab-'+j);
+    if(t){t.style.borderBottom=j===i?'2px solid var(--vermillion)':'2px solid transparent';t.style.color=j===i?'var(--vermillion)':'var(--muted)';t.style.background=j===i?'var(--paper)':'var(--paper2)';}
+  });
+}
+// ── プロンプト編集 ──
+function toggleEdit(idx){
+  const el=document.getElementById('pt-'+idx);
+  const btn=document.getElementById('edit-'+idx);
+  if(!el||!btn)return;
+  const isEditing=el.contentEditable==='true';
+  if(isEditing){
+    // 編集完了 → _generatedPromptsに反映
+    el.contentEditable='false';
+    btn.textContent='✏️';btn.classList.remove('editing');
+    const p=window._generatedPrompts&&window._generatedPrompts.find(x=>x.index===idx);
+    if(p)p.prompt=el.innerText.trim();
+    showToast('✅ 編集を保存しました');
+  }else{
+    el.contentEditable='true';
+    btn.textContent='✅';btn.classList.add('editing');
+    el.focus();
+    // カーソルを末尾に
+    const range=document.createRange();range.selectNodeContents(el);range.collapse(false);
+    const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);
+    showToast('✏️ 編集モード — 修正後「✅」を押して確定');
+  }
 }
 // ── お気に入り ──
 function toggleFav(idx){
@@ -1375,7 +1456,7 @@ function toggleExpand(idx){
   el.style.overflow=isOpen?'':'visible';
   if(btn){btn.innerHTML=isOpen?'▼ 全文':'▲ 閉じる';}
 }
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(window._toastTimer);window._toastTimer=setTimeout(()=>t.classList.remove('show'),4000);}
 
 </script>
 </body>
