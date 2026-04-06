@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LINEスタンププロンプトファクトリー | 公式ガイド・使い方</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700;800&family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #f5f0e8;
+  --paper2: #ede8dc;
+  --paper3: #e2dcd0;
+  --ink: #1c1a16;
+  --ink2: #3a3530;
+  --vermillion: #c0392b;
+  --vermillion2: #9b2d22;
+  --muted: #7a7060;
+  --border: #c8bfaa;
+  --line: #06C755;
+  --line-dark: #00B900;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.6;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(0,0,0,0.025) 27px, rgba(0,0,0,0.025) 28px),
+    repeating-linear-gradient(90deg, transparent, transparent 27px, rgba(0,0,0,0.015) 27px, rgba(0,0,0,0.015) 28px);
+}
+.header { background: var(--line); border-bottom: 4px solid var(--line-dark); position: sticky; top: 0; z-index: 100; }
+.header-inner { max-width: 1000px; margin: 0 auto; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+.site-title { font-family: 'Shippori Mincho', serif; font-size: 22px; font-weight: 800; letter-spacing: 0.1em; color: #fff; display: flex; align-items: center; gap: 12px;}
+.site-title .icon { width: 40px; height: 40px; border: 2px solid rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.nav-links { display: flex; gap: 20px; }
+.nav-links a { color: #fff; text-decoration: none; font-weight: 700; font-size: 14px; transition: opacity 0.2s; }
+.nav-links a:hover { opacity: 0.8; }
+
+.container { max-width: 1000px; margin: 0 auto; padding: 60px 24px; }
+
+/* Hero Section */
+.hero { text-align: center; margin-bottom: 80px; }
+.hero-badge { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.15em; border: 1.5px solid var(--vermillion); color: var(--vermillion); padding: 6px 16px; margin-bottom: 24px; text-transform: uppercase; }
+.hero h1 { font-family: 'Shippori Mincho', serif; font-size: 42px; font-weight: 800; color: var(--ink); line-height: 1.3; margin-bottom: 24px; letter-spacing: 0.05em; }
+.hero p { font-size: 16px; color: var(--ink2); max-width: 600px; margin: 0 auto 32px; line-height: 1.8; }
+.cta-btn { display: inline-flex; align-items: center; justify-content: center; background: var(--vermillion); color: #fff; text-decoration: none; padding: 18px 40px; font-family: 'Shippori Mincho', serif; font-size: 18px; font-weight: 800; letter-spacing: 0.1em; transition: all 0.2s; box-shadow: 0 4px 15px rgba(192, 57, 43, 0.3); }
+.cta-btn:hover { background: var(--vermillion2); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(192, 57, 43, 0.4); }
+
+/* Features Section */
+.section-title { font-family: 'Shippori Mincho', serif; font-size: 28px; font-weight: 800; text-align: center; margin-bottom: 48px; position: relative; }
+.section-title::after { content: ''; display: block; width: 60px; height: 3px; background: var(--vermillion); margin: 16px auto 0; }
+.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 32px; margin-bottom: 80px; }
+.feature-card { background: var(--paper2); border: 2px solid var(--border); padding: 40px 32px; text-align: center; transition: transform 0.2s; }
+.feature-card:hover { transform: translateY(-5px); border-color: var(--ink2); }
+.feature-icon { font-size: 48px; margin-bottom: 24px; display: inline-block; }
+.feature-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; color: var(--ink); }
+.feature-desc { font-size: 14px; color: var(--muted); line-height: 1.7; text-align: left; }
+
+/* How to Use Section */
+.steps-container { max-width: 800px; margin: 0 auto 80px; }
+.step-item { display: flex; gap: 24px; margin-bottom: 40px; background: #fff; border: 1.5px solid var(--border); padding: 32px; position: relative; }
+.step-number { font-family: 'IBM Plex Mono', monospace; font-size: 48px; font-weight: 700; color: var(--vermillion); line-height: 1; opacity: 0.8; }
+.step-content h3 { font-size: 22px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.step-content p { font-size: 15px; color: var(--ink2); line-height: 1.7; margin-bottom: 16px; }
+.step-img-ph { background: var(--paper3); border: 1px dashed var(--border); padding: 20px; text-align: center; font-size: 12px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+.highlight { font-weight: 700; color: var(--vermillion); background: rgba(192, 57, 43, 0.08); padding: 2px 6px; }
+
+/* Trial Banner */
+.trial-banner { background: #e8fdf0; border: 2px solid #b0e8c4; padding: 32px; text-align: center; border-radius: 8px; margin-bottom: 80px; }
+.trial-banner h3 { color: var(--line-dark); font-size: 24px; font-weight: 800; margin-bottom: 12px; }
+.trial-banner p { font-size: 15px; color: #333; margin-bottom: 24px; }
+.trial-banner .price { font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 700; background: #fff; display: inline-block; padding: 8px 24px; border-radius: 30px; border: 1px solid #b0e8c4; color: var(--line-dark); }
+
+footer { background: var(--ink2); color: var(--paper); text-align: center; padding: 40px 24px; font-size: 12px; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.1em; }
+
+@media (max-width: 768px) {
+  .hero h1 { font-size: 32px; }
+  .step-item { flex-direction: column; gap: 16px; padding: 24px; }
+  .nav-links { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="site-title">
+      <div class="icon">🏭</div>
+      <span>プロンプトファクトリー <small style="font-size:12px;opacity:0.8;font-family:'Noto Sans JP',sans-serif;">公式ガイド</small></span>
+    </div>
+    <div class="nav-links">
+      <a href="#features">特徴</a>
+      <a href="#how-to">使い方</a>
+      <a href="#pricing">料金</a>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  
+  <section class="hero">
+    <div class="hero-badge">Midjourney / DALL-E / Gemini 対応</div>
+    <h1>1クリックで最大40個。<br>LINEスタンプ用プロンプトを一括生成。</h1>
+    <p>キャラクター設定と画風を選ぶだけで、画像生成AI用の精巧な英語プロンプトを大量に自動作成。セリフやポーズも完璧に指定されたプロンプトで、LINEスタンプ制作の時間を圧倒的に短縮します。また、一回利用の文字にそったポーズ画像が作れます！</p>
+    <a href="#tool-top" class="cta-btn">今すぐ無料で試してみる</a>
+  </section>
+
+  <!-- 追加：プロンプトとは？解説セクション -->
+  <section style="max-width: 800px; margin: 0 auto 60px; background: #fff; border-radius: 8px; border: 1.5px solid var(--border); padding: 24px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+    <strong style="color: var(--vermillion); font-size: 18px; display: inline-block; margin-bottom: 8px;">💡 そもそも「プロンプト」とは？</strong>
+    <p style="font-size: 15px; color: var(--ink2); line-height: 1.7; margin: 0;">
+      画像生成AI（GeminiやMidjourneyなど）に「どんな画像を描いてほしいか」を伝えるための<strong>指示文（呪文）</strong>のことです。<br>
+      AIは英語の指示を最も正確に理解するため、本ツールでは理想のスタンプを作るための精巧な英語プロンプトを自動生成します。
+    </p>
+  </section>
+
+  <!-- 追加：お悩み共感セクション -->
+  <section style="background: var(--paper2); padding: 60px 24px; margin: 0 -24px 80px; text-align: center; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+    <h2 style="font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 800; margin-bottom: 32px; color: var(--ink);">AIでのLINEスタンプ制作、こんな悩みはありませんか？</h2>
+    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 900px; margin: 0 auto;">
+      <div style="background: #fff; padding: 20px; border-radius: 8px; flex: 1; min-width: 250px; border: 1px dashed var(--vermillion); color: var(--ink2); font-weight: 700;">
+        <img src="imgf/kuma1.png" alt="悩む" style="width: 100%; max-width: 120px; height: auto; margin-bottom: 16px; display: block; margin-left: auto; margin-right: auto;">
+        😩 40個分のプロンプトを<br>1つずつ考えるのが苦痛…
+      </div>
+      <div style="background: #fff; padding: 20px; border-radius: 8px; flex: 1; min-width: 250px; border: 1px dashed var(--vermillion); color: var(--ink2); font-weight: 700;">
+        <img src="imgf/kuma2.png" alt="ネタ切れ" style="width: 100%; max-width: 120px; height: auto; margin-bottom: 16px; display: block; margin-left: auto; margin-right: auto;">
+        🤔 日常で使えるスタンプの<br>「セリフ」のネタが尽きた…
+      </div>
+      <div style="background: #fff; padding: 20px; border-radius: 8px; flex: 1; min-width: 250px; border: 1px dashed var(--vermillion); color: var(--ink2); font-weight: 700;">
+        <img src="imgf/kuma3.png" alt="英語が苦手" style="width: 100%; max-width: 120px; height: auto; margin-bottom: 16px; display: block; margin-left: auto; margin-right: auto;">
+        😟 「泣く」「笑う」などの<br>ポーズ指定が英語で書けない…
+      </div>
+    </div>
+    <div style="margin-top: 32px; font-size: 18px; font-weight: 700; color: var(--line-dark);">
+      👉 そのお悩み、<span style="background: linear-gradient(transparent 60%, #b0e8c4 40%);">プロンプトファクトリーがすべて解決します！</span>
+    </div>
+  </section>
+
+  <section id="features">
+    <h2 class="section-title">ツールの3つの特徴</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3 class="feature-title">圧倒的な時短</h3>
+        <p class="feature-desc">LINEスタンプ1セット分（最大40個）のプロンプトをボタン1つで瞬時に生成。1つずつAIに指示を考える膨大な時間をカットします。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎨</div>
+        <h3 class="feature-title">豊富なスタイル指定</h3>
+        <p class="feature-desc">「アニメスタイル」「水彩画」「3Dレンダリング」「ドット絵」など、選んだ画風や質感が全てのプロンプトに自動で反映されます。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💬</div>
+        <h3 class="feature-title">160種の厳選セリフ</h3>
+        <p class="feature-desc">日常会話から感情、ネットスラングまで。選んだセリフに合わせて、AIが描くキャラクターの「表情」や「ポーズ」まで自動的に指定されます。</p>
+      </div>
+    </div>
+
+    <!-- 追加：プロンプトの具体例 -->
+    <div style="max-width: 800px; margin: 0 auto 80px; background: #fff; border: 2px solid var(--ink); position: relative;">
+      <div style="background: var(--ink); color: #fff; padding: 10px 20px; font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 14px;">🛠️ 生成されるプロンプトの例</div>
+      <div style="padding: 24px;">
+        <p style="font-size: 14px; color: var(--muted); margin-bottom: 12px;">あなたが入力するのはこれだけ👇</p>
+        <div style="background: var(--paper); padding: 16px; border-left: 4px solid var(--line-dark); font-weight: 700; margin-bottom: 24px;">
+          キャラ：ふわふわの白いウサギ<br>
+          スタイル：アニメスタイル<br>
+          セリフ：「おはよう！」を選ぶ
+        </div>
+        <p style="font-size: 14px; color: var(--muted); margin-bottom: 12px;">AIへ指示するプロンプトが自動完成👇</p>
+        <div style="background: var(--ink2); color: #a8e890; padding: 16px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.6;">
+          Create a LINE sticker illustration of ふわふわの白いウサギ. Style: cute kawaii anime illustration style. Pose/expression: stretching arms wide open with a big bright smile, eyes sparkling, sunrise glow. The sticker includes bold Japanese text saying "おはよう！" clearly written. The background must be pure solid white (#FFFFFF)...
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how-to">
+    <h2 class="section-title">使い方ステップ</h2>
+    <div class="steps-container">
+      
+      <div class="step-item">
+        <div class="step-number">01</div>
+        <div class="step-content">
+          <h3>キャラクターとスタイルを設定</h3>
+          <p>左パネル上部の<span class="highlight">「キャラクター説明」</span>に、ベースとなるキャラの特徴（例：丸くてふわふわした白いウサギ）を入力します。手持ちの画像を使いたい場合は、空欄でOKです。次に、イラストや3Dなどの<span class="highlight">「ビジュアルスタイル」</span>を選択します。</p>
+          <div class="step-img-ph">例：アニメスタイル / 3Dレンダリング / 水彩画 など</div>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-number">02</div>
+        <div class="step-content">
+          <h3>スタンプの仕様を決める</h3>
+          <p>「スタンプ」「メイン画像」「タブ画像」から用途を選択します。画像サイズのアスペクト比が自動で調整されます。さらに、<span class="highlight">生成したい個数（最大40個）</span>と、画像内に<span class="highlight">テキスト（文字）を含めるかどうか</span>を選択します。</p>
+          <div class="step-img-ph">✍️ テキストあり / 🎨 テキストなし</div>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-number">03</div>
+        <div class="step-content">
+          <h3>セリフを選ぶ・追加する</h3>
+          <p>「厳選セリフ」一覧から、スタンプにしたい言葉をクリックして選びます。<span class="highlight">「↺ 入替」</span>ボタンで日常系やトレンド系など別のセリフ群に切り替えることも可能です。オリジナルの言葉を使いたい場合は「カスタム入力」から追加してください。</p>
+          <div class="step-img-ph">選択したセリフに合った「ポーズ」が英語でプロンプトに組み込まれます</div>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-number">04</div>
+        <div class="step-content">
+          <h3>『▶︎順番にコピー』もしくは「コピー」ボタンを押す</h3>
+          <p>準備ができたら、赤い<span class="highlight">「プロンプトを一括生成」</span>ボタンをクリック！数秒で右側のエリアに英語のプロンプトがリストアップされます。<br>プロンプトが表示されたら、『▶︎順番にコピー』または「コピー」ボタンを押します。</p>
+          <div class="step-img-ph">📋 コピー / ⬇️ テキスト保存 に対応</div>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-number">05</div>
+        <div class="step-content">
+          <h3>画像生成AIを実行する</h3>
+          <p><a href="https://gemini.google.com/" target="_blank" style="color:var(--line-dark);font-weight:bold;text-decoration:underline;">Google Gemini</a> を起動して、「画像を作成」を押します。<br>コピーしたプロンプトを「貼り付ける」「実行する」の順で操作します。<br><span class="highlight">※手元画像を使いたい場合は添付してください。</span></p>
+          <div style="margin-top: 16px; padding: 12px 16px; background: rgba(6, 199, 85, 0.05); border-left: 4px solid var(--line-dark); font-size: 14px; color: var(--ink2);">
+            <strong style="color: var(--line-dark); display: block; margin-bottom: 4px;">💡 画像を調整したい場合</strong>
+            画像に変更点を希望したい場合は、Geminiに直接伝えてください。（例：「もう少し明るくして」「背景を透明にして」など）
+          </div>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-number">06</div>
+        <div class="step-content">
+          <h3>LINEチャットで使ってみる</h3>
+          <p>できた画像を長押しでコピーしてLINEチャットに貼り付けてみてください。すぐに送信して楽しむことができます。</p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-number">07</div>
+        <div class="step-content">
+          <h3>LINEスタンプとして登録</h3>
+          <p>作成した画像をスタンプとして正式に登録・販売したい場合は、以下の公式ページから手続きを行ってください。<br><br><a href="https://creator.line.me/ja/" target="_blank" style="display:inline-block;padding:10px 20px;background:#06C755;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">LINEスタンプ作成のページへ</a></p>
+        </div>
+      </div>
+
+    </div>
+    
+    <!-- 追加：中間CTAボタン -->
+    <div style="text-align: center; margin-bottom: 100px;">
+      <a href="#tool-top" class="cta-btn">ツールを使ってみる（7日間無料）</a>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <div class="trial-banner">
+      <h3>まずは7日間、無料でお試し。</h3>
+      <p>初めてご利用の方は、すべての機能を7日間無料で使い放題です。<br>LINEスタンプ制作の圧倒的なスピードを体感してください。</p>
+      <div class="price">月額プラン ¥1,000 / 月 (税込)</div>
+      <p style="font-size: 12px; color: #666; margin-top: 16px; margin-bottom: 0;">※無料期間終了後は、プランにご登録いただくことで引き続き無制限にご利用いただけます。</p>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div>&copy; 2024 LINE STAMP PROMPT FACTORY. All rights reserved.</div>
+</footer>
+
+</body>
+</html>

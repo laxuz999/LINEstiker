@@ -307,7 +307,10 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
       <div class="hdiv"></div>
       <div class="header-sub">Prompt Generator</div>
     </div>
-    <div class="header-badge">40 Prompts / 1 Click</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="header-badge">40 Prompts / 1 Click</div>
+      <a href="guide.html" target="_blank" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;border:1px solid rgba(255,255,255,0.9);color:#fff;padding:5px 12px;text-decoration:none;text-transform:uppercase;background:rgba(255,255,255,0.15);transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">📖 使い方ガイド</a>
+    </div>
   </div>
 </header>
 
