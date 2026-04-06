@@ -1459,5 +1459,12 @@ function toggleExpand(idx){
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(window._toastTimer);window._toastTimer=setTimeout(()=>t.classList.remove('show'),4000);}
 
 </script>
+<footer style="text-align:center;padding:24px 16px;font-size:12px;color:#7a7060;border-top:1px solid #c8bfaa;margin-top:40px;">
+  <a href="tokushoho.html" style="color:#7a7060;text-decoration:underline;">特定商取引法に基づく表記</a>
+  &nbsp;|&nbsp;
+  <a href="guide.html" style="color:#7a7060;text-decoration:underline;">使い方ガイド</a>
+  &nbsp;|&nbsp;
+  <a href="mailto:info@laxuz.net" style="color:#7a7060;text-decoration:underline;">お問い合わせ</a>
+</footer>
 </body>
 </html>

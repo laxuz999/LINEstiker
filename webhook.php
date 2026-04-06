@@ -9,7 +9,10 @@
 // 設定後、「署名シークレット（whsec_xxxxx）」を下記に貼り付けてください。
 // ============================================================
 
-$webhook_secret = 'whsec_8kCIyiZ9yRhPJudHruVDEIVvTCHTq7BN';
+// テストモード用シークレット（brilliant-spark）
+$webhook_secret_test = 'whsec_N6hfS5FroJNCLygUA4LyZiOMWPwJmXtQ';
+// 本番モード用シークレット（engaging-victory）
+$webhook_secret_live = 'whsec_8kCIyiZ9yRhPJudHruVDEIVvTCHTq7BN';
 
 $data_dir  = __DIR__ . '/data';
 $token_file = $data_dir . '/paid_tokens.json';
@@ -50,7 +53,9 @@ function verify_stripe_signature($payload, $sig_header, $secret) {
     return false;
 }
 
-if (!verify_stripe_signature($payload, $sig_header, $webhook_secret)) {
+$verified = verify_stripe_signature($payload, $sig_header, $webhook_secret_test)
+         || verify_stripe_signature($payload, $sig_header, $webhook_secret_live);
+if (!$verified) {
     http_response_code(400);
     echo json_encode(['error' => 'Invalid signature']);
     exit;
