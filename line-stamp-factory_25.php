@@ -1214,7 +1214,11 @@ function copyAll() {
   });
 }
 
-function copyAll(){if(!window._generatedPrompts)return;const text=window._generatedPrompts.map(p=>'// #'+String(p.index).padStart(2,'0')+' '+p.emoji+' '+p.label+'\n'+p.prompt).join('\n\n');openModal(text,'全'+window._generatedPrompts.length+'個のプロンプト');}
+function copyAll(){
+  if(!window._generatedPrompts)return;
+  const text=window._generatedPrompts.map(p=>'// #'+String(p.index).padStart(2,'0')+' '+p.emoji+' '+p.label+'\n'+p.prompt).join('\n\n\n');
+  doCopy(text, ()=>showToast('✅ '+window._generatedPrompts.length+'個のプロンプトをコピーしました'));
+}
 function downloadAll(){if(!window._generatedPrompts)return;const text=window._generatedPrompts.map(p=>`#${String(p.index).padStart(2,'0')} ${p.emoji} ${p.label}\n${p.prompt}`).join('\n\n---\n\n');const blob=new Blob([text],{type:'text/plain'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`LINE_stamp_prompts_${Date.now()}.txt`;a.click();URL.revokeObjectURL(url);showToast('保存しました');}
 function toggleExpand(idx){
   const el=document.getElementById('pt-'+idx);
