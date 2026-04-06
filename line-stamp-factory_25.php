@@ -1145,7 +1145,7 @@ function renderOutput(prompts){
       <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:3px;font-family:'IBM Plex Mono',monospace;">サイズ (px)</div>
     </div>
   </div>`;
-  const actionRow=`<div class="action-row"><button class="action-btn copy-all" onclick="copyAll()">📋 全部まとめてコピー</button><button class="action-btn seq-btn" id="seqCopyBtn" onclick="copyNext()">▶ 順番にコピー <span id="seqLabel">1/${prompts.length}</span></button><button class="action-btn" onclick="downloadAll()">⬇️ テキスト保存</button></div>`;
+  const actionRow=`<div class="action-row"><button class="action-btn seq-btn" id="seqCopyBtn" onclick="copyNext()">▶ 順番にコピー <span id="seqLabel">1/${prompts.length}</span></button></div>`;
   const cards=prompts.map(p=>`<div class="prompt-card" id="card-${p.index}"><div class="card-header"><span class="card-num">#${String(p.index).padStart(2,'0')}</span><span class="card-label">${p.emoji} ${p.label}</span><span class="card-tag tag-${p.cat}">${CAT_LABELS[p.cat]||p.cat}</span></div><div class="card-body"><div class="prompt-text" id="pt-${p.index}">${escHtml(p.prompt)}</div><div class="card-footer"><button class="mini-btn copy" onclick="copyOne(${p.index})">📋 コピー</button><button class="mini-btn expand" onclick="toggleExpand(${p.index})" title="プロンプト全文を表示">▼ 全文</button></div></div></div>`).join('');
   area.innerHTML=statsBar+actionRow+`<div class="prompt-grid">${cards}</div>`;
   window._generatedPrompts=prompts;
