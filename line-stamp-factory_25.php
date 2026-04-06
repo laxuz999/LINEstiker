@@ -1112,7 +1112,8 @@ function removeExtraSerif(i){
   saveExtraSerifs();
 }
 
-document.getElementById('extraSerifInput').addEventListener('keydown',e=>{
+const _extraInput=document.getElementById('extraSerifInput');
+if(_extraInput)_extraInput.addEventListener('keydown',e=>{
   if(e.key==='Enter'){e.preventDefault();addExtraSerif();}
 });
 
