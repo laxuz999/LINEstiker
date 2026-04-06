@@ -9,7 +9,7 @@
 // 設定後、「署名シークレット（whsec_xxxxx）」を下記に貼り付けてください。
 // ============================================================
 
-$webhook_secret = 'whsec_ここにStripeの署名シークレットを貼り付ける';
+$webhook_secret = 'whsec_8kCIyiZ9yRhPJudHruVDEIVvTCHTq7BN';
 
 $data_dir  = __DIR__ . '/data';
 $token_file = $data_dir . '/paid_tokens.json';
