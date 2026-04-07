@@ -1,1 +1,4 @@
 .claude/worktrees/
+
+# Stripe APIキー（本番用シークレット - gitに含めない）
+stripe_config.php

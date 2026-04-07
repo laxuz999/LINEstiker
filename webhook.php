@@ -85,10 +85,12 @@ if ($type === 'checkout.session.completed') {
         if (!$already) {
             $new_token = bin2hex(random_bytes(32));
             $tokens[$new_token] = [
-                'created_at' => time(),
-                'session_id' => $session_id,
-                'email'      => $session['customer_details']['email'] ?? '',
-                'source'     => 'webhook',
+                'created_at'  => time(),
+                'session_id'  => $session_id,
+                'customer_id' => $session['customer'] ?? null,
+                'email'       => $session['customer_details']['email'] ?? '',
+                'source'      => 'webhook',
+                'mode'        => (strpos($session_id, 'cs_test_') === 0) ? 'test' : 'live',
             ];
             save_tokens($token_file, $tokens);
         }

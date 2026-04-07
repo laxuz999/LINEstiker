@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/stripe_config.php';
+
 // --- トークンファイルの読み書き ---
 $data_dir = __DIR__ . '/data';
 $token_file = $data_dir . '/paid_tokens.json';
@@ -11,21 +13,60 @@ function save_tokens($f, $tokens) {
     file_put_contents($f, json_encode($tokens));
 }
 
+// --- Stripe APIでsession_idを検証（URL偽造防止） ---
+function verify_stripe_session($session_id) {
+    // cs_test_ で始まればテストモード、それ以外は本番モード
+    $key = (strpos($session_id, 'cs_test_') === 0)
+        ? STRIPE_SECRET_KEY_TEST
+        : STRIPE_SECRET_KEY_LIVE;
+
+    $url = 'https://api.stripe.com/v1/checkout/sessions/' . urlencode($session_id);
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $key],
+        CURLOPT_TIMEOUT        => 10,
+    ]);
+    $response  = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($http_code !== 200) return null;
+    $data = json_decode($response, true);
+
+    // セッションが完了済みであることを確認
+    if (($data['status'] ?? '') !== 'complete') return null;
+
+    return [
+        'customer_id' => $data['customer'] ?? null,
+        'mode'        => (strpos($session_id, 'cs_test_') === 0) ? 'test' : 'live',
+    ];
+}
+
 // --- 1. 支払い済みかどうかの判定（サーバーサイドトークン照合）---
 $paid_token = $_COOKIE['paid_token'] ?? '';
 $tokens = load_tokens($token_file);
 $is_paid = ($paid_token !== '' && isset($tokens[$paid_token]));
 
-// Stripeから戻ってきた直後（URLにsession_idがある）なら、サーバーサイドトークンを発行
-// cs_ で始まる正規のStripe session IDのみ受け付ける（URL偽造防止）
+// Stripeから戻ってきた直後（URLにsession_idがある）なら、Stripe APIで検証してトークンを発行
+// cs_ で始まる正規のStripe session IDのみ受け付ける
 if (isset($_GET['session_id']) && strpos($_GET['session_id'], 'cs_') === 0) {
     if (!$is_paid) {
-        $new_token = bin2hex(random_bytes(32));
-        $tokens[$new_token] = ['created_at' => time(), 'session_id' => $_GET['session_id']];
-        if (!is_dir($data_dir)) mkdir($data_dir, 0755, true);
-        save_tokens($token_file, $tokens);
-        setcookie('paid_token', $new_token, time() + (86400 * 365), "/", "", true, true);
-        $is_paid = true;
+        // Stripe APIで決済完了を検証（URL偽造を防ぐ）
+        $session_info = verify_stripe_session($_GET['session_id']);
+        if ($session_info !== null) {
+            $new_token = bin2hex(random_bytes(32));
+            $tokens[$new_token] = [
+                'created_at'  => time(),
+                'session_id'  => $_GET['session_id'],
+                'customer_id' => $session_info['customer_id'],
+                'mode'        => $session_info['mode'],
+            ];
+            if (!is_dir($data_dir)) mkdir($data_dir, 0755, true);
+            save_tokens($token_file, $tokens);
+            setcookie('paid_token', $new_token, time() + (86400 * 365), "/", "", true, true);
+            $is_paid = true;
+        }
     }
     // URLをクリーンにしてリダイレクト（ブックマーク汚染防止）
     header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
@@ -316,6 +357,9 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
     <div style="display:flex;align-items:center;gap:10px;">
       <div class="header-badge">40 Prompts / 1 Click</div>
       <a href="guide.html" target="_blank" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;border:1px solid rgba(255,255,255,0.9);color:#fff;padding:5px 12px;text-decoration:none;text-transform:uppercase;background:rgba(255,255,255,0.15);transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">📖 使い方ガイド</a>
+      <?php if ($is_paid): ?>
+      <a href="portal.php" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;border:1px solid rgba(255,255,255,0.9);color:#fff;padding:5px 12px;text-decoration:none;text-transform:uppercase;background:rgba(255,255,255,0.15);transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">👤 マイページ</a>
+      <?php endif; ?>
     </div>
   </div>
 </header>

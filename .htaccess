@@ -1,0 +1,5 @@
+# stripe_config.php への直接Webアクセスを禁止
+<Files "stripe_config.php">
+    Order allow,deny
+    Deny from all
+</Files>
