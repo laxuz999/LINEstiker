@@ -114,21 +114,9 @@ if (isset($_GET['session_id']) && strpos($_GET['session_id'], 'cs_') === 0) {
                     <div class="row"><span class="label">利用制限</span><span class="value">無制限</span></div>
                     <div class="row"><span class="label">解約</span><span class="value">マイページからいつでも可能</span></div>
                 </div>
-                <a href="<?php echo htmlspecialchars($clean_url); ?>" class="btn" id="startBtn">🚀 サービスを開始する</a>
-                <p class="countdown" id="countdown">5秒後に自動で移動します...</p>
+                <a href="<?php echo htmlspecialchars($clean_url); ?>" class="btn">🚀 サービスを開始する</a>
             </div>
         </div>
-        <script>
-            var sec = 5;
-            var timer = setInterval(function(){
-                sec--;
-                document.getElementById('countdown').textContent = sec + '秒後に自動で移動します...';
-                if(sec <= 0){
-                    clearInterval(timer);
-                    window.location.href = document.getElementById('startBtn').href;
-                }
-            }, 1000);
-        </script>
     </body>
     </html>
     <?php
