@@ -68,8 +68,70 @@ if (isset($_GET['session_id']) && strpos($_GET['session_id'], 'cs_') === 0) {
             $is_paid = true;
         }
     }
-    // URLをクリーンにしてリダイレクト（ブックマーク汚染防止）
-    header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
+    // 決済完了確認画面を表示
+    $clean_url = strtok($_SERVER['REQUEST_URI'], '?');
+    ?>
+    <!DOCTYPE html>
+    <html lang="ja">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>決済完了 - LINEスタンププロンプトファクトリー</title>
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;800&display=swap" rel="stylesheet">
+        <style>
+            *{box-sizing:border-box;margin:0;padding:0;}
+            body{font-family:"Noto Sans JP",sans-serif;background:#f0faf3;display:flex;flex-direction:column;min-height:100vh;}
+            .top-bar{background:#06C755;border-bottom:4px solid #00B900;padding:14px 24px;display:flex;align-items:center;gap:12px;}
+            .top-bar .icon{font-size:22px;}
+            .top-bar .title{font-size:18px;font-weight:800;color:#fff;letter-spacing:0.05em;}
+            .wrap{flex:1;display:flex;justify-content:center;align-items:center;padding:40px 24px;}
+            .card{background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.08);max-width:480px;width:100%;padding:48px 36px;text-align:center;}
+            .check{width:72px;height:72px;background:#06C755;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:36px;}
+            h1{font-size:22px;font-weight:800;color:#1a1a1a;margin-bottom:12px;}
+            .sub{font-size:14px;color:#555;line-height:1.8;margin-bottom:28px;}
+            .plan-box{background:#f0faf3;border:2px solid #06C755;border-radius:8px;padding:16px 24px;margin-bottom:28px;text-align:left;}
+            .plan-box .row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:4px 0;}
+            .plan-box .row .label{color:#555;}
+            .plan-box .row .value{font-weight:700;color:#1a1a1a;}
+            .btn{display:block;background:#06C755;color:#fff;padding:16px;border-radius:8px;font-size:16px;font-weight:800;text-decoration:none;letter-spacing:0.05em;transition:background .2s;}
+            .btn:hover{background:#00B900;}
+            .countdown{font-size:12px;color:#aaa;margin-top:14px;}
+        </style>
+    </head>
+    <body>
+        <div class="top-bar">
+            <div class="icon">🏭</div>
+            <div class="title">LINEスタンププロンプトファクトリー</div>
+        </div>
+        <div class="wrap">
+            <div class="card">
+                <div class="check">✅</div>
+                <h1>ご登録ありがとうございます！</h1>
+                <p class="sub">月額プランのお申し込みが完了しました。<br>引き続きお楽しみください。</p>
+                <div class="plan-box">
+                    <div class="row"><span class="label">プラン</span><span class="value">月額プラン</span></div>
+                    <div class="row"><span class="label">料金</span><span class="value">¥1,000 / 月（税込）</span></div>
+                    <div class="row"><span class="label">利用制限</span><span class="value">無制限</span></div>
+                    <div class="row"><span class="label">解約</span><span class="value">マイページからいつでも可能</span></div>
+                </div>
+                <a href="<?php echo htmlspecialchars($clean_url); ?>" class="btn" id="startBtn">🚀 サービスを開始する</a>
+                <p class="countdown" id="countdown">5秒後に自動で移動します...</p>
+            </div>
+        </div>
+        <script>
+            var sec = 5;
+            var timer = setInterval(function(){
+                sec--;
+                document.getElementById('countdown').textContent = sec + '秒後に自動で移動します...';
+                if(sec <= 0){
+                    clearInterval(timer);
+                    window.location.href = document.getElementById('startBtn').href;
+                }
+            }, 1000);
+        </script>
+    </body>
+    </html>
+    <?php
     exit;
 }
 
