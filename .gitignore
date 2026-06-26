@@ -2,3 +2,7 @@
 
 # Stripe APIキー（本番用シークレット - gitに含めない）
 stripe_config.php
+
+# ユーザー/課金データ（パスワードハッシュ・個人情報を含む - gitに含めない）
+data/users.json
+data/paid_tokens.json

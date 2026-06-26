@@ -5,31 +5,20 @@
 // ポータルでサブスクリプションの確認・解約・支払い方法変更が可能
 // ============================================================
 require_once __DIR__ . '/stripe_config.php';
+require_once __DIR__ . '/auth.php';
 
-$data_dir   = __DIR__ . '/data';
-$token_file = $data_dir . '/paid_tokens.json';
-
-// paid_token クッキーを確認
-$paid_token = $_COOKIE['paid_token'] ?? '';
-if (!$paid_token) {
-    // 未ログイン → トップへリダイレクト
-    header('Location: /Linestiker/');
+// ログイン中アカウントを取得（未ログインはログイン画面へ）
+$me = current_user();
+if (!$me) {
+    header('Location: login.php');
     exit;
 }
+$user = $me['user'];
 
-$tokens     = file_exists($token_file) ? (json_decode(file_get_contents($token_file), true) ?: []) : [];
-$token_data = $tokens[$paid_token] ?? null;
-
-// トークンが無効
-if (!$token_data) {
-    header('Location: /Linestiker/');
-    exit;
-}
-
-$customer_id = $token_data['customer_id'] ?? null;
-$mode        = $token_data['mode'] ?? 'live';
+$customer_id = $user['stripe_customer_id'] ?? null;
+$mode        = $user['mode'] ?? 'live';
 $key         = ($mode === 'test') ? STRIPE_SECRET_KEY_TEST : STRIPE_SECRET_KEY_LIVE;
-$return_url  = 'https://laxuz.net/Linestiker/';
+$return_url  = 'https://laxuz.xyz/LINEstiker/';
 
 // customer_id が保存されていない場合はメール案内
 if (!$customer_id) {
@@ -100,7 +89,7 @@ function showPortalError($msg) {
                 <h2>マイページ</h2>
                 <p><?php echo htmlspecialchars($msg); ?></p>
                 <p>お問い合わせ：<a href="mailto:info@laxuz.net" class="mail-link">info@laxuz.net</a></p>
-                <a href="/Linestiker/" class="btn">← サービスに戻る</a>
+                <a href="/LINEstiker/" class="btn">← サービスに戻る</a>
             </div>
         </div>
     </body>

@@ -1,21 +1,22 @@
 <?php
 require_once __DIR__ . '/stripe_config.php';
+require_once __DIR__ . '/auth.php';
 
-// --- トークンファイルの読み書き ---
-$data_dir = __DIR__ . '/data';
-$token_file = $data_dir . '/paid_tokens.json';
-
-function load_tokens($f) {
-    if (!file_exists($f)) return [];
-    return json_decode(file_get_contents($f), true) ?: [];
+// --- ログイン必須化 ---
+// 未ログインはログイン画面へ。これによりシークレットウィンドウや
+// クッキー削除での無限トライアルを根本的に防ぐ。
+$me = current_user();
+if (!$me) {
+    header('Location: login.php');
+    exit;
 }
-function save_tokens($f, $tokens) {
-    file_put_contents($f, json_encode($tokens));
-}
+$user_id = $me['id'];
+$user    = $me['user'];
 
-// --- Stripe APIでsession_idを検証（URL偽造防止） ---
+// --- Stripe APIでsession_idを検証（決済直後の即時反映・偽造防止） ---
+// 検証はログイン中ユーザーに対してのみ行い、client_reference_id が
+// 本人と一致する場合だけ課金状態を有効化する（他人のセッション流用も防止）。
 function verify_stripe_session($session_id) {
-    // cs_test_ で始まればテストモード、それ以外は本番モード
     $key = (strpos($session_id, 'cs_test_') === 0)
         ? STRIPE_SECRET_KEY_TEST
         : STRIPE_SECRET_KEY_LIVE;
@@ -33,39 +34,33 @@ function verify_stripe_session($session_id) {
 
     if ($http_code !== 200) return null;
     $data = json_decode($response, true);
-
-    // セッションが完了済みであることを確認
     if (($data['status'] ?? '') !== 'complete') return null;
 
     return [
-        'customer_id' => $data['customer'] ?? null,
-        'mode'        => (strpos($session_id, 'cs_test_') === 0) ? 'test' : 'live',
+        'customer_id'          => $data['customer'] ?? null,
+        'client_reference_id'  => $data['client_reference_id'] ?? null,
+        'subscription'         => $data['subscription'] ?? null,
     ];
 }
 
-// --- 1. 支払い済みかどうかの判定（サーバーサイドトークン照合）---
-$paid_token = $_COOKIE['paid_token'] ?? '';
-$tokens = load_tokens($token_file);
-$is_paid = ($paid_token !== '' && isset($tokens[$paid_token]));
+// --- 課金状態の判定（アカウント基準）---
+$is_paid = user_is_paid($user);
 
-// Stripeから戻ってきた直後（URLにsession_idがある）なら、Stripe APIで検証してトークンを発行
-// cs_ で始まる正規のStripe session IDのみ受け付ける
+// Stripeから戻ってきた直後（URLにsession_idがある）なら、Stripe APIで検証して
+// ログイン中アカウントを即座に課金有効化する（Webhook遅延のレース対策）。
+// client_reference_id が本人と一致する完了済みセッションのみ受け付ける。
 if (isset($_GET['session_id']) && strpos($_GET['session_id'], 'cs_') === 0) {
     if (!$is_paid) {
-        // Stripe APIで決済完了を検証（URL偽造を防ぐ）
         $session_info = verify_stripe_session($_GET['session_id']);
-        if ($session_info !== null) {
-            $new_token = bin2hex(random_bytes(32));
-            $tokens[$new_token] = [
-                'created_at'  => time(),
-                'session_id'  => $_GET['session_id'],
-                'customer_id' => $session_info['customer_id'],
-                'mode'        => $session_info['mode'],
-            ];
-            if (!is_dir($data_dir)) mkdir($data_dir, 0755, true);
-            save_tokens($token_file, $tokens);
-            setcookie('paid_token', $new_token, time() + (86400 * 365), "/", "", true, true);
+        if ($session_info !== null
+            && ($session_info['client_reference_id'] ?? null) === $user_id) {
+            update_user($user_id, [
+                'subscription_status' => 'active',
+                'stripe_customer_id'  => $session_info['customer_id'],
+                'mode'                => (strpos($_GET['session_id'], 'cs_test_') === 0) ? 'test' : 'live',
+            ]);
             $is_paid = true;
+            $user['subscription_status'] = 'active';
         }
     }
     // 決済完了確認画面を表示
@@ -123,22 +118,26 @@ if (isset($_GET['session_id']) && strpos($_GET['session_id'], 'cs_') === 0) {
     exit;
 }
 
-// --- 2. 無料体験の開始日をチェック ---
-$cookie_name = 'trial_start_date';
-$start_date = $_COOKIE[$cookie_name] ?? null;
+// --- 2-3. トライアル残日数（アカウントのcreated_at基準）---
+$days_left = trial_days_left($user);
 
-if (!$start_date) {
-    $start_date = time();
-    setcookie($cookie_name, $start_date, time() + (86400 * 365), "/", "", false, true);
-}
-
-// --- 3. 経過日数と残り日数を計算 ---
-$seconds_passed = time() - $start_date;
-$days_passed = floor($seconds_passed / 86400);
-$days_left = 7 - $days_passed;
-
-// --- 4. 判定：支払っていない 且つ 7日過ぎた場合のみブロック ---
-if (!$is_paid && $days_left <= 0) {
+// --- 4. 判定：利用権が無ければ（課金切れ・トライアル終了）ブロック ---
+if (!user_has_access($user)) {
+    // 決済リンクに client_reference_id を付け、Webhookで本人を特定できるようにする
+    $buy_url = 'https://buy.stripe.com/3cI4gy9wQ0qg9kU5ACdby00'
+             . '?client_reference_id=' . urlencode($user_id)
+             . '&prefilled_email=' . urlencode($user['email']);
+    // ブロック理由に応じて見出しを切り替え
+    $sub_status = $user['subscription_status'] ?? 'trial';
+    if ($sub_status === 'canceled' || $sub_status === 'past_due') {
+        $block_badge = 'SUBSCRIPTION ENDED';
+        $block_head  = 'ご利用を再開するには';
+        $block_lead  = 'サブスクリプションが終了しています。<br>引き続きご利用いただくには、月額プランへの再登録をお願いします。';
+    } else {
+        $block_badge = 'FREE TRIAL ENDED';
+        $block_head  = '無料体験期間が終了しました';
+        $block_lead  = '7日間の無料体験をご利用いただきありがとうございました。<br>引き続きご利用いただくには、月額プランへのご登録をお願いします。';
+    }
     echo '<!DOCTYPE html>
     <html lang="ja">
     <head>
@@ -173,15 +172,16 @@ if (!$is_paid && $days_left <= 0) {
         </div>
         <div class="wrap">
             <div class="card">
-                <div class="badge">FREE TRIAL ENDED</div>
-                <h2>無料体験期間が終了しました</h2>
-                <p>7日間の無料体験をご利用いただきありがとうございました。<br>引き続きご利用いただくには、月額プランへのご登録をお願いします。</p>
+                <div class="badge">' . $block_badge . '</div>
+                <h2>' . $block_head . '</h2>
+                <p>' . $block_lead . '</p>
                 <div class="price-box">
                     <div class="label">月額プラン</div>
                     <div class="amount">¥1,000<span> / 月（税込）</span></div>
                 </div>
-                <a href="https://buy.stripe.com/3cI4gy9wQ0qg9kU5ACdby00" class="btn">月額プランに登録して再開する</a>
+                <a href="' . htmlspecialchars($buy_url) . '" class="btn">月額プランに登録して再開する</a>
                 <p class="note">※クレジットカード払い　※いつでも解約可能</p>
+                <p class="note">ログイン中：' . htmlspecialchars($user['email']) . ' / <a href="logout.php" style="color:#00B900;">ログアウト</a></p>
             </div>
         </div>
     </body>
@@ -410,6 +410,7 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
       <?php if ($is_paid): ?>
       <a href="portal.php" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;border:1px solid rgba(255,255,255,0.9);color:#fff;padding:5px 12px;text-decoration:none;text-transform:uppercase;background:rgba(255,255,255,0.15);transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">👤 マイページ</a>
       <?php endif; ?>
+      <a href="logout.php" title="<?php echo htmlspecialchars($user['email']); ?>" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;border:1px solid rgba(255,255,255,0.9);color:#fff;padding:5px 12px;text-decoration:none;text-transform:uppercase;background:rgba(255,255,255,0.15);transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">⏏ ログアウト</a>
     </div>
   </div>
 </header>
