@@ -588,9 +588,8 @@ textarea:focus,input[type="text"]:focus{border-color:var(--vermillion);backgroun
 </div>
 
 <script>
-// PHP→JS変数（トライアル・支払い状態）
-const _PHP_IS_PAID = <?php echo $is_paid ? 'true' : 'false'; ?>;
-const _PHP_TRIAL_START = <?php echo (int)$start_date; ?>;
+// アクセス制御はサーバー側（ログイン＋アカウント単位のトライアル/課金）で
+// 完結しているため、クライアント側のトライアル判定は廃止。
 const FULL_40=[
   {text:"おはよう！",cat:"daily",emoji:"🌅",label:"おはよう",pose:"stretching arms wide open with a big bright smile, eyes sparkling, sunrise glow"},
   {text:"おやすみ",cat:"daily",emoji:"🌙",label:"おやすみ",pose:"eyes drooping sleepy, holding a pillow, yawning with tiny sleepy smile, ZZZ floating"},
@@ -1017,22 +1016,6 @@ renderExtraSerifList();
     cBtn.classList.add('active');
     const lbl=document.getElementById('selectCountLabel');
     if(lbl)lbl.textContent=stampCount;
-  }
-})();
-
-// ── トライアルlocalStorageバックアップ ──
-(function(){
-  const _KEY='lsf_trial_start';
-  const _stored=localStorage.getItem(_KEY);
-  if(!_stored){
-    localStorage.setItem(_KEY,_PHP_TRIAL_START);
-  } else {
-    const _ls=parseInt(_stored,10);
-    const _days=Math.floor((Date.now()/1000-_ls)/86400);
-    if(!_PHP_IS_PAID && _days>=7){
-      // クッキーが削除されてPHPが通してしまった場合のJS側フォールバック
-      document.body.innerHTML='<div style="display:flex;flex-direction:column;min-height:100vh;background:#f0faf3;font-family:\'Noto Sans JP\',sans-serif;"><div style="background:#06C755;border-bottom:4px solid #00B900;padding:14px 24px;"><span style="font-size:18px;font-weight:800;color:#fff;">🏭 LINEスタンププロンプトファクトリー</span></div><div style="flex:1;display:flex;justify-content:center;align-items:center;padding:24px;"><div style="background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.08);max-width:480px;width:100%;padding:40px 32px;text-align:center;"><div style="display:inline-block;background:#e8fdf0;color:#00B900;border:1px solid #b0e8c4;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;margin-bottom:20px;">FREE TRIAL ENDED</div><h2 style="font-size:22px;font-weight:800;color:#1a1a1a;margin-bottom:12px;">無料体験期間が終了しました</h2><p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:16px;">7日間の無料体験をご利用いただきありがとうございました。<br>引き続きご利用いただくには、月額プランへのご登録をお願いします。</p><div style="background:#f0faf3;border:2px solid #06C755;border-radius:8px;padding:16px 24px;margin:20px 0;"><div style="font-size:12px;color:#00B900;font-weight:700;margin-bottom:4px;">月額プラン</div><div style="font-size:28px;font-weight:800;color:#1a1a1a;">¥1,000<span style="font-size:14px;font-weight:400;color:#555;"> / 月（税込）</span></div></div><a href="https://buy.stripe.com/3cI4gy9wQ0qg9kU5ACdby00" style="display:block;background:#06C755;color:#fff;padding:16px;border-radius:8px;font-size:16px;font-weight:800;text-decoration:none;margin-top:8px;">月額プランに登録して再開する</a><p style="font-size:11px;color:#aaa;margin-top:16px;">※クレジットカード払い　※いつでも解約可能</p></div></div></div>';
-    }
   }
 })();
 
