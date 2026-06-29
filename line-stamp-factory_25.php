@@ -1346,13 +1346,25 @@ function doCopy(text, onSuccess) {
     navigator.clipboard.writeText(text).then(onSuccess).catch(() => fallbackCopy(text, onSuccess));
   } else { fallbackCopy(text, onSuccess); }
 }
+// iOS Safari対応：opacity:0+select()ではコピーできないため、
+// Range + setSelectionRange による選択を使う。失敗時は手動モーダルを表示。
 function fallbackCopy(text, onSuccess) {
   const ta = document.createElement('textarea');
   ta.value = text;
-  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;font-size:16px;';
-  document.body.appendChild(ta); ta.focus(); ta.select();
-  try { document.execCommand('copy'); onSuccess(); } catch(e) { showFallbackModal(text); }
+  ta.readOnly = false;
+  ta.contentEditable = true;
+  ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px;';
+  document.body.appendChild(ta);
+  const range = document.createRange();
+  range.selectNodeContents(ta);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  ta.setSelectionRange(0, text.length);
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch(e) { ok = false; }
   document.body.removeChild(ta);
+  if (ok) { onSuccess(); } else { showFallbackModal(text); }
 }
 function showFallbackModal(text) {
   document.getElementById('modalLabel').textContent = '手動でコピーしてください (Ctrl+C)';
@@ -1363,15 +1375,28 @@ function showFallbackModal(text) {
 function openModal(text, label) { showFallbackModal(text); }
 function closeModal() { document.getElementById('copyModal').classList.remove('open'); }
 function tryCopy() {
-  const ta = document.getElementById('modalText'); ta.focus(); ta.select();
+  const ta = document.getElementById('modalText');
+  const done = () => {
+    const btn = document.getElementById('modalCopyBtn');
+    btn.textContent = '✅ コピー完了'; btn.style.background = '#22863a';
+    showToast('✅ コピー完了');
+    setTimeout(() => { btn.textContent = '📋 コピーする'; btn.style.background = ''; closeModal(); }, 1800);
+  };
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(ta.value).then(() => {
-      const btn = document.getElementById('modalCopyBtn');
-      btn.textContent = '✅ コピー完了'; btn.style.background = '#22863a';
-      showToast('✅ コピー完了');
-      setTimeout(() => { btn.textContent = '📋 コピーする'; btn.style.background = ''; closeModal(); }, 1800);
-    }).catch(() => { try { document.execCommand('copy'); closeModal(); showToast('✅ コピー完了'); } catch(e){} });
-  } else { try { document.execCommand('copy'); closeModal(); showToast('✅ コピー完了'); } catch(e){} }
+    navigator.clipboard.writeText(ta.value).then(done).catch(() => iosSelectCopy(ta, done));
+  } else { iosSelectCopy(ta, done); }
+}
+// iOS Safari でも選択＆コピーできるよう Range で選択して execCommand
+function iosSelectCopy(ta, done) {
+  const range = document.createRange();
+  range.selectNodeContents(ta);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  ta.setSelectionRange(0, ta.value.length);
+  try { if (document.execCommand('copy')) { done(); return; } } catch(e) {}
+  // それでも不可なら、ユーザーが手動でコピーできるよう選択状態のまま残す
+  showToast('テキストを選択しました。長押しして「コピー」を選んでください');
 }
 function copyOne(idx) {
   const p = window._generatedPrompts && window._generatedPrompts.find(x => x.index === idx);
