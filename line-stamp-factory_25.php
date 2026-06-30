@@ -948,7 +948,8 @@ function renderSelectedSummary(){
   if(cnt)cnt.textContent=total;
   if(selCnt)selCnt.textContent='選択中: '+sel.length+'個'+(extra.length?' + 追加'+extra.length+'個':'');
   if(!sum||!list)return;
-  if(total===0){sum.style.display='none';return;}
+  // 「厳選セリフ」タブ（テキストありモード）を選んだ時だけ表示する
+  if(currentMode!=='text'||currentTab!=='40'||total===0){sum.style.display='none';return;}
   sum.style.display='block';
   list.innerHTML='';
   sel.forEach(s=>{
@@ -1068,7 +1069,7 @@ document.addEventListener('click',e=>{
   const en=btn.querySelector('.en')?btn.querySelector('.en').textContent:'';
   document.getElementById('selectedStyleDisplay').textContent='選択中 → '+ja+(en?' ('+en+')':'');
 });
-function setMode(m){currentMode=m;document.getElementById('modeText').classList.toggle('active',m==='text');document.getElementById('modeNoText').classList.toggle('active',m==='notext');document.getElementById('textModeArea').style.display=m==='text'?'':'none';}
+function setMode(m){currentMode=m;document.getElementById('modeText').classList.toggle('active',m==='text');document.getElementById('modeNoText').classList.toggle('active',m==='notext');document.getElementById('textModeArea').style.display=m==='text'?'':'none';renderSelectedSummary();}
 function switchTab(t){
   currentTab=t;
   document.getElementById('tab40').classList.toggle('active',t==='40');
@@ -1081,6 +1082,7 @@ function switchTab(t){
     if(t==='custom'){cs.style.opacity='0.35';cs.style.pointerEvents='none';}
     else{cs.style.opacity='';cs.style.pointerEvents='';}
   }
+  renderSelectedSummary();
 }
 const customInput=document.getElementById('customInput');
 customInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addCustomText(customInput.value.trim());customInput.value='';}});
