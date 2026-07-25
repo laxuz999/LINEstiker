@@ -8,19 +8,13 @@
 // ============================================================
 require_once __DIR__ . '/auth.php';
 
-// ── 管理者許可リスト（ハードコード）──
-const ADMIN_EMAILS = ['zz999999999@gmail.com'];
-
 // 未ログインならログイン画面へ
 $me = current_user();
 if (!$me) {
     header('Location: login.php');
     exit;
 }
-$my_email = normalize_email($me['user']['email'] ?? '');
-
-$admin_emails_normalized = array_map('normalize_email', ADMIN_EMAILS);
-$is_admin = in_array($my_email, $admin_emails_normalized, true);
+$is_admin = is_admin_user($me['user']);
 
 // ── 状態ラベル変換 ──
 function admin_status_label($status) {

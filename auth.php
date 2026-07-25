@@ -18,6 +18,19 @@ if (!defined('TRIAL_DAYS')) {
 }
 $GLOBALS['__users_file'] = __DIR__ . '/data/users.json';
 
+// ── 管理者許可リスト（ハードコード）──
+const ADMIN_EMAILS = ['zz999999999@gmail.com'];
+
+/**
+ * このユーザーが管理者許可リストに含まれるか。
+ * @param array $user ユーザー配列（'email'キーを持つ）
+ */
+function is_admin_user($user) {
+    $email = normalize_email($user['email'] ?? '');
+    $admin_emails_normalized = array_map('normalize_email', ADMIN_EMAILS);
+    return in_array($email, $admin_emails_normalized, true);
+}
+
 // ── セッション開始（安全なクッキー設定）──
 function auth_session_start() {
     if (session_status() === PHP_SESSION_ACTIVE) return;

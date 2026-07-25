@@ -15,6 +15,11 @@ if (!$me) {
 }
 $user = $me['user'];
 
+if (is_admin_user($user)) {
+    header('Location: admin.php');
+    exit;
+}
+
 $customer_id = $user['stripe_customer_id'] ?? null;
 $mode        = $user['mode'] ?? 'live';
 $key         = ($mode === 'test') ? STRIPE_SECRET_KEY_TEST : STRIPE_SECRET_KEY_LIVE;
