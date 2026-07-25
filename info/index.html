@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LINEスタンプ 作成ツール | LAXUZ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --line: #06C755;
+  --line-dark: #00B900;
+  --ink: #1a1a1a;
+  --ink2: #444;
+  --muted: #666;
+  --bg: #f5f7f6;
+  --card-bg: #fff;
+  --border: #e0e6e2;
+}
+* , *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.7;
+}
+
+.back-link-wrap {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px 24px 0;
+}
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--line-dark);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  transition: opacity 0.2s;
+}
+.back-link:hover { opacity: 0.7; }
+
+.hero {
+  text-align: center;
+  padding: 32px 24px 48px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.hero-icon { font-size: 48px; margin-bottom: 16px; }
+.hero h1 {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--ink);
+  margin-bottom: 12px;
+  letter-spacing: 0.02em;
+}
+.hero p {
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.cards {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 24px 60px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 28px;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+}
+
+.card-icon {
+  font-size: 40px;
+  margin-bottom: 16px;
+}
+.card-title {
+  font-size: 19px;
+  font-weight: 900;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+.card-desc {
+  font-size: 14px;
+  color: var(--ink2);
+  margin-bottom: 20px;
+}
+.card-desc + .card-desc {
+  margin-top: -12px;
+}
+
+.card-steps {
+  list-style: none;
+  margin-bottom: 24px;
+  flex-grow: 1;
+}
+.card-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--ink2);
+  margin-bottom: 8px;
+}
+.card-steps li .num {
+  font-weight: 700;
+  color: var(--line-dark);
+  flex-shrink: 0;
+}
+
+.card-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.card-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--line);
+  color: #fff;
+  text-decoration: none;
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 15px;
+  text-align: center;
+  transition: background 0.2s;
+  margin-top: auto;
+}
+.card-btn:hover { background: var(--line-dark); }
+
+footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--muted);
+  font-size: 12px;
+}
+footer .heart { color: var(--line); }
+
+@media (max-width: 600px) {
+  .hero h1 { font-size: 22px; }
+  .cards { grid-template-columns: 1fr; gap: 20px; }
+  .card { padding: 24px 20px; }
+}
+</style>
+</head>
+<body>
+
+<div class="back-link-wrap">
+  <a href="https://laxuz.xyz/" class="back-link">← LAXUZポータルへ戻る</a>
+</div>
+
+<section class="hero">
+  <div class="hero-icon">🎨</div>
+  <h1>LINEスタンプ 作成ツール</h1>
+  <p>2つのツールで、あなただけのオリジナルスタンプを作ろう！</p>
+</section>
+
+<div class="cards">
+
+  <article class="card">
+    <div class="card-icon">✍️</div>
+    <h2 class="card-title">LINEスタンプ プロンプトファクトリー</h2>
+    <p class="card-desc">作りたいスタンプのイメージを文字で入力（プロンプト）するだけで、オリジナルのLINEスタンプが自動で生成されます。絵が描けなくても大丈夫！</p>
+    <p class="card-desc">「笑顔のねこ」「ありがとうって言うくま」など、思い浮かんだイメージをそのまま入力してみてください✨</p>
+    <ul class="card-steps">
+      <li><span class="num">1.</span><span>⌨️ 作りたいスタンプを文字で入力</span></li>
+      <li><span class="num">2.</span><span>🤖 AIが自動でスタンプを生成</span></li>
+      <li><span class="num">3.</span><span>💾 気に入ったものを保存</span></li>
+      <li><span class="num">4.</span><span>📱 LINEに登録して完成！</span></li>
+    </ul>
+    <a href="/LINEstiker/index.php" class="card-btn">プロンプトファクトリーを使う →</a>
+  </article>
+
+  <article class="card">
+    <div class="card-icon">✂️</div>
+    <h2 class="card-title">LINEスタンプ 背景透過ツール</h2>
+    <p class="card-desc">写真やイラストの背景を自動で透明にして、LINEスタンプ用の画像（PNG）に変換できる無料ツールです。特別なソフトは不要！ブラウザだけで完結します。</p>
+    <p class="card-desc">スマホでもPCでも使えるので、お気に入りの写真をそのままスタンプにできます📸</p>
+    <ul class="card-steps">
+      <li><span class="num">1.</span><span>📁 画像をアップロード</span></li>
+      <li><span class="num">2.</span><span>✨ 背景が自動で消える</span></li>
+      <li><span class="num">3.</span><span>💾 PNG形式で保存</span></li>
+      <li><span class="num">4.</span><span>📱 LINEに登録して完成！</span></li>
+    </ul>
+    <p class="card-note">※ LINEスタンプの申請・販売にはLINE Creators Marketへの登録が必要です。</p>
+    <a href="/LINEstiker/line_sticker_tool.html" class="card-btn">背景透過ツールを使う →</a>
+  </article>
+
+  <article class="card">
+    <div class="card-icon">💡</div>
+    <h2 class="card-title">スタンプ作成のコツ</h2>
+    <p class="card-desc">プロンプトファクトリーをもっと使いこなすための公式ガイドです。1セット分（最大40個）のプロンプトを一括生成する使い方や、画風・セリフの選び方まで、圧倒的に時短できるコツをまとめました。</p>
+    <p class="card-desc">「アニメスタイル」「水彩画」などの豊富なスタイル指定と、160種の厳選セリフから、狙った表情・ポーズのプロンプトが自動で組み込まれます。</p>
+    <ul class="card-steps">
+      <li><span class="num">1.</span><span>🎭 キャラクターとスタイルを設定</span></li>
+      <li><span class="num">2.</span><span>💬 160種の厳選セリフから選ぶ</span></li>
+      <li><span class="num">3.</span><span>🤖 AIが最大40個のプロンプトを自動生成</span></li>
+      <li><span class="num">4.</span><span>📖 良いプロンプトの書き方のコツも掲載</span></li>
+    </ul>
+    <a href="/LINEstiker/guide.html" class="card-btn">使い方を見る →</a>
+  </article>
+
+</div>
+
+<footer>
+  Made with <span class="heart">♥</span> by LAXUZ<br>
+  © 2026 LAXUZ portal
+</footer>
+
+</body>
+</html>
