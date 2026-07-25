@@ -88,3 +88,4 @@ curl -T data/.htaccess            --user "$USER" "$BASE/data/.htaccess" --ftp-cr
 
 1. **TDZ（Temporal Dead Zone）クラッシュ**: `let` 変数の宣言より前で使用するとReferenceErrorで全JSがクラッシュ → イベントリスナーが一切登録されずボタン全滅
 2. **null参照クラッシュ**: `document.getElementById()` がnullを返す要素に `.innerHTML=''` → TypeError → 同様にJS全滅。`if(!c)return;` のnullガードを必ず入れること
+3. **Gmail +alias による7日間トライアル使い回し不正**: `find_user_by_email()` が `normalize_email()`（trim+lowercaseのみ）で完全一致比較していたため、`foo+1@gmail.com` / `foo+2@gmail.com`（実体は同じ受信箱）を別アカウントとして登録・確認・トライアル開始できてしまった。→ `auth.php` に重複判定専用の `canonicalize_email()` を追加（gmail.com/googlemail.comのみ `+以降` とドットを除去）し、`find_user_by_email()` の比較をcanonicalize後の値で行うよう修正。保存する `email` フィールド自体（trim+lowercase止まり）は変更していない。

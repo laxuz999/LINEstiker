@@ -70,10 +70,34 @@ function normalize_email($email) {
     return strtolower(trim($email));
 }
 
-function find_user_by_email($email) {
+/**
+ * 重複判定専用の正規化。
+ * Gmail/Googlemailは「+alias」「ドット」の違いを無視して同一アドレスとみなす
+ * （実際に届く受信箱が同じため、これらを別アカウント扱いにするとトライアルの
+ * 使い回し不正を許してしまう）。
+ * 保存する email フィールド自体は normalize_email() のまま変更しない。
+ */
+function canonicalize_email($email) {
     $email = normalize_email($email);
+    $at = strrpos($email, '@');
+    if ($at === false) return $email;
+    $local  = substr($email, 0, $at);
+    $domain = substr($email, $at + 1);
+    if ($domain === 'gmail.com' || $domain === 'googlemail.com') {
+        $plus = strpos($local, '+');
+        if ($plus !== false) {
+            $local = substr($local, 0, $plus);
+        }
+        $local  = str_replace('.', '', $local);
+        $domain = 'gmail.com';
+    }
+    return $local . '@' . $domain;
+}
+
+function find_user_by_email($email) {
+    $target = canonicalize_email($email);
     foreach (load_users() as $id => $u) {
-        if (($u['email'] ?? '') === $email) {
+        if (canonicalize_email($u['email'] ?? '') === $target) {
             return ['id' => $id, 'user' => $u];
         }
     }
