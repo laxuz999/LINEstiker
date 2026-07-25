@@ -1,3 +1,8 @@
+# ディレクトリ直下アクセス時、index.php（本物のツール）をindex.htmlより優先する
+# ※ index.html は git管理外の何らかの経緯で本番にのみ置かれており、
+#   デフォルト設定だとApacheがこちらを優先してしまい、本物のツール(index.php)が隠れてしまう
+DirectoryIndex index.php index.html
+
 # stripe_config.php への直接Webアクセスを禁止
 <Files "stripe_config.php">
     Order allow,deny
